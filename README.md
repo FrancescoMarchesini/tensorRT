@@ -7,6 +7,6 @@ Cartella Doc: /usr/share/doc/tensorrt
 Per uteriori informazioni su tensorRT visitare la pagina di documentazione ufficiale:
 http://docs.nvidia.com/deeplearning/sdk/tensorrt-api/index.html
 
-##Samples
+## Samples
 I sample vanno i orindine di complessita 
-1--sampleMNSIT
+1-- sampleMNSIT
