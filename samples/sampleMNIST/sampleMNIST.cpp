@@ -1,63 +1,108 @@
-#include <assert.h>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <cmath>
-#include <algorithm>
-#include <sys/stat.h>
-#include <time.h>
+#include "sampleMNIST.h"
 #include <cuda_runtime_api.h>
 
-/**
- *utilizzo della libreria NvInfer per costruire il motere di inferenze
- */
-#include "NvInfer.h"
-
-/**
- *il motore è basata su un modello di caffe il seguende headers è un parser
- *dei file di caffe
- */
-#include "NvCaffeParser.h"
-
-using namespace nvinfer1;
-using namespace nvcaffeparser1;
-
-#define CHECK(status)									\
-{														\
-	if (status != 0)									\
-	{													\
-		std::cout << "Cuda failure: " << status;		\
-		abort();										\
-	}													\
+GIE:~GIE()
+{
+	if(engigne != NULL){
+		engigne->destroy();
+		engigne = NULL;
+	}
+	if(runtime != NULL){
+		runtime->destroy();
+		runtime = NULL;
+	}
 }
 
-//Whidth e Height delle immagini e del modello
-static const int INPUT_H = 28;
-static const int INPUT_W = 28;
-static const int OUTPUT_SIZE = 10;
-
-//che cos'è un blob:
-//caffe stores, communicates, and manipulates the information as blobs: 
-//the blob is the standard array and unified memory interface for the framework
-const char* INPUT_BLOB_NAME = "data";
-const char* OUTPUT_BLOB_NAME = "prob";
-
-
-// Logger for GIE info/warning/errors
-// il logger in tensorRT è necessario
-class Logger : public ILogger			
+GIE::GIE(void)
 {
-	void log(Severity severity, const char* msg) override
-	{
-		// suppress info-level messages
-		if (severity != Severity::kINFO)
-			std::cout << msg << std::endl;
-	}
-} gLogger;
+	// create a GIE model from the caffe model and serialize it to a stream
+    IHostMemory *gieModelStream{nullptr};
 
+	//creazione dell'engigne a partire dal modello di caffe
+   	caffeToGIEModel("mnist.prototxt", "mnist.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, 1, gieModelStream);
 
+	// read a random digit file
+	srand(unsigned(time(nullptr)));
+	uint8_t fileData[INPUT_H*INPUT_W];
+    num = rand() % 10;
+	//copio il file caricato nella struttura dati fileData
+	readPGMFile(std::to_string(num) + ".pgm", fileData);
+
+	// print an ascii representation
+	std::cout << "\n\n\n---------------------------" << "\n\n\n" << std::endl;
+	for (int i = 0; i < INPUT_H*INPUT_W; i++)
+		std::cout << (" .:-=+*#%@"[fileData[i] / 26]) << (((i + 1) % INPUT_W) ? "" : "\n");
+
+	// parse the mean file and 	subtract it from the image
+	// carico il file della media e distruggo il parser
+	ICaffeParser* parser = createCaffeParser();
+	IBinaryProtoBlob* meanBlob = parser->parseBinaryProto(locateFile("mnist_mean.binaryproto").c_str());
+	parser->destroy();
+
+	const float *meanData = reinterpret_cast<const float*>(meanBlob->getData());
+
+	//faccio la sottrazioni dell'immagine correttene con quella della media
+	float data[INPUT_H*INPUT_W];
+	for (int i = 0; i < INPUT_H*INPUT_W; i++)
+		data[i] = float(fileData[i])-meanData[i];
+
+	meanBlob->destroy();
+
+	// deserialize the engine 
+	// deserizilizzazione dell'engigne non so cos'è
+	IRuntime* runtime = createInferRuntime(gLogger);
+	ICudaEngine* engine = runtime->deserializeCudaEngine(gieModelStream->data(), gieModelStream->size(), nullptr);
+    if (gieModelStream) gieModelStream->destroy();
+
+	//creo l'esecuzion dell'enginge
+	IExecutionContext *context = engine->createExecutionContext();
+
+	// run inference
+	//float prob[OUTPUT_SIZE];
+	
+	// e copio in prob il risultato
+	doInference(*context, data, prob, 1);
+
+	// destroy the engine
+	context->destroy();
+	engine->destroy();
+	runtime->destroy();
+
+	// print a histogram of the output distribution
+	/*std::cout << "\n\n";
+    float val{0.0f};
+    int idx{0};
+	for (unsigned int i = 0; i < 10; i++)
+    {
+        val = std::max(val, prob[i]);
+        if (val == prob[i]) idx = i;
+		std::cout << i << ": " << std::string(int(std::floor(prob[i] * 10 + 0.5f)), '*') << "\n";
+    }
+	std::cout << std::endl;
+
+//	return (idx == num && val > 0.9f) ? EXIT_SUCCESS : EXIT_FAILURE;
+*/
+}
+
+bool GIE::plot()
+{
+	// print a histogram of the output distribution
+	std::cout << "\n\n";
+    float val{0.0f};
+    int idx{0};
+	for (unsigned int i = 0; i < 10; i++)
+    {
+        val = std::max(val, prob[i]);
+        if (val == prob[i]) idx = i;
+		std::cout << i << ": " << std::string(int(std::floor(prob[i] * 10 + 0.5f)), '*') << "\n";
+    }
+	std::cout << std::endl;
+
+	return (idx == getNum() && val > 0.9f) ? EXIT_SUCCESS : EXIT_FAILURE;
+
+}
 //funzione per caricare il modello e i relativi file
-std::string locateFile(const std::string& input)
+std::string GIE::locateFile(const std::string& input)
 {
 	std::string file = "data/samples/mnist/" + input;
 	struct stat info;
@@ -81,7 +126,7 @@ std::string locateFile(const std::string& input)
 // simple PGM (portable greyscale map) reader
 // lettura del file grafici in formato PGM
 // uint8_t : unsigned int di lunghezza 8 bit . l'array è 28 * 28 = 784 
-void readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
+void GIE::readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
 {
 	std::ifstream infile(locateFile(fileName), std::ifstream::binary);
 	std::string magic, h, w, max;
@@ -101,7 +146,7 @@ void readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
  *  aggregazione di operazioni con parametri simili
  *  elisione delle concatezione tra i layer per percorsi pi brevi
  */
-void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototxt
+bool GIE::caffeToGIEModel(const std::string& deployFile,				// name for caffe prototxt
 					 const std::string& modelFile,				// name for model 
 					 const std::vector<std::string>& outputs,   // network outputs
 					 unsigned int maxBatchSize,					// batch size - NB must be at least as large as the batch we want to run with)
@@ -114,6 +159,13 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	// parse the caffe model to populate the network, then set the outputs
 	// creazione del network
 	INetworkDefinition* network = builder->createNetwork();
+
+	//funzioni di logger
+	builder-setDebugSync(true);
+
+	//funzioni di ottimizzazione
+	builder->setMinFindIterations(3);
+	builder->setAverageFindIterations(2);
 	
 	// popolazione del network tramite i parametri del modello caffe estratti tramite la lib parser
 	ICaffeParser* parser = createCaffeParser();
@@ -123,22 +175,49 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 															  *network,
 															  DataType::kFLOAT);
 
+	//funzione per fare il check
+	if(!IBlobNameToTensor){
+		std::cout << "fallito a caricare il modello e mapparlo" << std::endl;
+		return false;
+	}
+
 	// specify which tensors are outputs
 	// il modello di caffe non dice quali sono i layer di output. Per questo dobbiamo mapparli manualmente: legge i network output e tramite la funzione find che restituiesce il nome del layer lo mappa con i tensori
-	for (auto& s : outputs)
+	/*for (auto& s : outputs)
 		network->markOutput(*blobNameToTensor->find(s.c_str()));
-	
+	*/
+	const size_t num_ouputs = output.size();
+	for(size_t n=0; n < num_ouputs; n++){
+		//in uqesto modo posso avere gli tensor di output come argomento di ritono e fare un check
+		nvinfer1::ITensor* tensor = blobNameToTensor->find(output[n].c_string());		
+
+		if(!tensors){
+			std::cout<< "fallito a mappare gli output: " << output[n].c_string() <<std::endl;
+		}else{
+			std::cout<< "trovato aoutput comaptibili: " << output[n].getName() <<std::endl;
+		}
+
+		network->markOutput(*tensor);
+	}
+
 	// Build the engine
 	// Costuzione dell'engigne a partire dalla definizione del network
 	// BatchSize : gradezza con la quale engihne è tuned
+	std::cout << "configuro l'engigne cuda" << endl;
 	builder->setMaxBatchSize(maxBatchSize);
 	builder->setMaxWorkspaceSize(1 << 20);
 
-	//creazione dell'engigne a partire dal network	
+	//creazione dell'engigne a partire dal network
+	std::cout <<"costruisco l'engigne cuda"<< std::endl;
 	ICudaEngine* engine = builder->buildCudaEngine(*network);
 	//funzione assert: comparazione con lo zero se è diverso da 0 da errore, ovvero non
 	//si è costruito l'engigne per un qualche problema
-	assert(engine);
+	if(!engine){
+		std::cout << "fallito a costruire lengigne" << endl;
+		return false;
+	}
+
+	std::cout << "engigne costrutito corretamente" << std::endl;
 
 	// we don't need the network any more, and we can destroy the parser
 	// distruggo gli oggetti non piu necessari
@@ -150,6 +229,8 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	engine->destroy();
 	builder->destroy();
 	shutdownProtobufLibrary();
+
+	return true;
 }
 
 /**
@@ -160,7 +241,7 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
  *	le inferenze vengo fatte tramite gli input e ouput buffer sulla gpu
  */
 
-void doInference(IExecutionContext& context, float* input, float* output, int batchSize)
+void GIE::doInference(IExecutionContext& context, float* input, float* output, int batchSize)
 {
 	/**
 	 * gli input dell'engigne sono array di puntatori agli input e output buffer sulla GPU
@@ -206,74 +287,4 @@ void doInference(IExecutionContext& context, float* input, float* output, int ba
 	cudaStreamDestroy(stream);
 	CHECK(cudaFree(buffers[inputIndex]));
 	CHECK(cudaFree(buffers[outputIndex]));
-}
-
-
-int main(int argc, char** argv)
-{
-	// create a GIE model from the caffe model and serialize it to a stream
-    IHostMemory *gieModelStream{nullptr};
-
-	//creazione dell'engigne a partire dal modello di caffe
-   	caffeToGIEModel("mnist.prototxt", "mnist.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, 1, gieModelStream);
-
-	// read a random digit file
-	srand(unsigned(time(nullptr)));
-	uint8_t fileData[INPUT_H*INPUT_W];
-    int num = rand() % 10;
-	//copio il file caricato nella struttura dati fileData
-	readPGMFile(std::to_string(num) + ".pgm", fileData);
-
-	// print an ascii representation
-	std::cout << "\n\n\n---------------------------" << "\n\n\n" << std::endl;
-	for (int i = 0; i < INPUT_H*INPUT_W; i++)
-		std::cout << (" .:-=+*#%@"[fileData[i] / 26]) << (((i + 1) % INPUT_W) ? "" : "\n");
-
-	// parse the mean file and 	subtract it from the image
-	// carico il file della media e distruggo il parser
-	ICaffeParser* parser = createCaffeParser();
-	IBinaryProtoBlob* meanBlob = parser->parseBinaryProto(locateFile("mnist_mean.binaryproto").c_str());
-	parser->destroy();
-
-	const float *meanData = reinterpret_cast<const float*>(meanBlob->getData());
-
-	//faccio la sottrazioni dell'immagine correttene con quella della media
-	float data[INPUT_H*INPUT_W];
-	for (int i = 0; i < INPUT_H*INPUT_W; i++)
-		data[i] = float(fileData[i])-meanData[i];
-
-	meanBlob->destroy();
-
-	// deserialize the engine 
-	// deserizilizzazione dell'engigne non so cos'è
-	IRuntime* runtime = createInferRuntime(gLogger);
-	ICudaEngine* engine = runtime->deserializeCudaEngine(gieModelStream->data(), gieModelStream->size(), nullptr);
-    if (gieModelStream) gieModelStream->destroy();
-
-	//creo l'esecuzion dell'enginge
-	IExecutionContext *context = engine->createExecutionContext();
-
-	// run inference
-	float prob[OUTPUT_SIZE];
-	// e copio in prob il risultato
-	doInference(*context, data, prob, 1);
-
-	// destroy the engine
-	context->destroy();
-	engine->destroy();
-	runtime->destroy();
-
-	// print a histogram of the output distribution
-	std::cout << "\n\n";
-    float val{0.0f};
-    int idx{0};
-	for (unsigned int i = 0; i < 10; i++)
-    {
-        val = std::max(val, prob[i]);
-        if (val == prob[i]) idx = i;
-		std::cout << i << ": " << std::string(int(std::floor(prob[i] * 10 + 0.5f)), '*') << "\n";
-    }
-	std::cout << std::endl;
-
-	return (idx == num && val > 0.9f) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
