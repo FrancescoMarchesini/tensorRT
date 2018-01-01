@@ -1,8 +1,8 @@
 # tensorRT
 
-Guida all'utilizzo di tensorRT tramite i suoi samples. \n
-Cartella samples : /usr/src/tensorrt \n
-Cartella Doc: /usr/share/doc/tensorrt "\n"
+Guida all'utilizzo di tensorRT tramite i suoi samples. 
+Cartella samples : /usr/src/tensorrt.
+Cartella Doc: /usr/share/doc/tensorrt.
 
 Per uteriori informazioni su tensorRT visitare la pagina di documentazione ufficiale:
 http://docs.nvidia.com/deeplearning/sdk/tensorrt-api/index.html
