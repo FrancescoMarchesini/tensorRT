@@ -8,5 +8,5 @@ Per uteriori informazioni su tensorRT visitare la pagina di documentazione uffic
 http://docs.nvidia.com/deeplearning/sdk/tensorrt-api/index.html
 
 ## Samples
-I sample vanno i orindine di complessita: 
-1. sampleMNSIT
+I sample vanno in ordine di complessita: 
+1. sampleMNSIT: parsing di un modello caffe, MNSIT model, e classificazione dei numeri da 0 a 9
