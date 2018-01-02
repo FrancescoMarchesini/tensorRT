@@ -4,6 +4,8 @@ Guida all'utilizzo di tensorRT tramite i suoi samples.
 - Cartella samples: /usr/src/tensorrt
 - Cartella Doc: /usr/share/doc/tensorrt
 
+Ai sorgenti originari è stata aggiunta la classe .H e un main.cpp.
+
 Per uteriori informazioni su tensorRT visitare la pagina di documentazione ufficiale:
 http://docs.nvidia.com/deeplearning/sdk/tensorrt-api/index.html
 
