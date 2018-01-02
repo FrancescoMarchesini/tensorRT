@@ -15,4 +15,6 @@ https://devblogs.nvidia.com/parallelforall/deploying-deep-learning-nvidia-tensor
 
 ## Samples
 I sample vanno in ordine di complessita: 
-1. sampleMNSIT: parsing di un modello caffe, MNSIT model, e classificazione dei numeri da 0 a 9
+1. sampleMNIST: parsing di un modello caffe, MNSIT model, e classificazione dei numeri da 0 a 9
+2. sampleMNISTAPI: importazione del modello precedente ma senza il parse di nvidia, ovvero implementazione manuale.
+3. sampleGoogleNNET: importazione modello googleNet
