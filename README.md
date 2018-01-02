@@ -7,7 +7,7 @@ Guida all'utilizzo di tensorRT tramite i suoi samples.
 Per uteriori informazioni su tensorRT visitare la pagina di documentazione ufficiale:
 http://docs.nvidia.com/deeplearning/sdk/tensorrt-api/index.html
 
-Spiegazione genereale sull'utilizzo di tensorRT:
+Spiegazione generale sull'utilizzo di tensorRT:
 https://devblogs.nvidia.com/parallelforall/deploying-deep-learning-nvidia-tensorrt/
 
 
