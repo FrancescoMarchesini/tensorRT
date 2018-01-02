@@ -45,11 +45,17 @@ public:
 	 */
 	//virtual ~GIE();
 
-	std::string locateFile(const std::string& input);
-	//passo un array non dimensionato
-	void readPGMFile(const std::string& fileName,  uint8_t buffer[]);
+	//Costruttore
+	GIE();
+	
+	
 
 	bool init();
+	std::string locateFile(const std::string& input);
+	
+	//Funzione per leggere i file in formato PGM
+	void readPGMFile(const std::string& fileName,  uint8_t buffer[]);
+	
 	/**
 	 * fase di costruzione 
 	 *	*file di archiettura del network(deploy.prototxt)
@@ -70,10 +76,6 @@ public:
 	bool plot();
 	int getNum(){return num;}
 
-	/**
-	 *	Costruttore
-	 */
-	GIE();
 	
 	// Logger for GIE info/warning/errors
 	// il logger in tensorRT è necessario
@@ -92,7 +94,6 @@ public:
 	nvinfer1::ICudaEngine *engine; //oggetto che rappresenta l'enginge
 	nvinfer1::IExecutionContext *context; //constesto
 
-	 
 	float prob[OUTPUT_SIZE];
 	int num;
 };
