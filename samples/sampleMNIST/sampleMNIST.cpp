@@ -26,7 +26,11 @@ bool GIE::init(void)
     IHostMemory *gieModelStream{nullptr};
 
 	//creazione dell'engigne a partire dal modello di caffe
-   	caffeToGIEModel("mnist.prototxt", "mnist.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, 1, gieModelStream);
+   	if(!caffeToGIEModel("mnist.prototxt", "mnist.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, 1, gieModelStream)){
+		std::cout<< "errore nella fase di Build"<<std::endl;
+	}else{
+		std::cout<<"fase di Build superata con sucesso " << std::endl;
+	}
 
 	// read a random digit file
 	srand(unsigned(time(nullptr)));
@@ -71,7 +75,13 @@ bool GIE::init(void)
 	//float prob[OUTPUT_SIZE];
 	
 	// e copio in prob il risultato
-	doInference(*context, data, prob, 1);
+	
+	if(!doInference(*context, data, prob, 1)){
+		std::cout<<"fase di deploy errata" << std::endl;
+		return false;
+	}else{
+		std::cout<<"inferenza eseguita correttamente" << std::endl;
+	}
 
 	// destroy the engine
 	context->destroy();
