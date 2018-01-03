@@ -1,50 +1,6 @@
-#include <assert.h>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <cmath>
-#include <algorithm>
-#include <sys/stat.h>
-#include <cmath>
-#include <time.h>
-#include <cuda_runtime_api.h>
+#include "sampleGoogleNet.h"
 
-#include "NvInfer.h"
-#include "NvCaffeParser.h"
-
-using namespace nvinfer1;
-using namespace nvcaffeparser1;
-
-#define CHECK(status)									\
-{														\
-	if (status != 0)									\
-	{													\
-		std::cout << "Cuda failure: " << status;		\
-		abort();										\
-	}													\
-}
-
-// stuff we know about the network and the caffe input/output blobs
-
-static const int BATCH_SIZE = 4;
-static const int TIMING_ITERATIONS = 1000;
-
-const char* INPUT_BLOB_NAME = "data";
-const char* OUTPUT_BLOB_NAME = "prob";
-
-
-// Logger for GIE info/warning/errors
-class Logger : public ILogger			
-{
-	void log(Severity severity, const char* msg) override
-	{
-		if (severity!=Severity::kINFO)
-			std::cout << msg << std::endl;
-	}
-} gLogger;
-
-
-std::string locateFile(const std::string& input)
+std::string GIEgoogleNET::locateFile(const std::string& input)
 {
 	std::string file = "data/samples/googlenet/" + input;
 	struct stat info;
@@ -64,34 +20,7 @@ std::string locateFile(const std::string& input)
 	return file;
 }
 
-struct Profiler : public IProfiler
-{
-	typedef std::pair<std::string, float> Record;
-	std::vector<Record> mProfile;
-
-	virtual void reportLayerTime(const char* layerName, float ms)
-	{
-		auto record = std::find_if(mProfile.begin(), mProfile.end(), [&](const Record& r){ return r.first == layerName; });
-		if (record == mProfile.end())
-			mProfile.push_back(std::make_pair(layerName, ms));
-		else
-			record->second += ms;
-	}
-
-	void printLayerTimes()
-	{
-		float totalTime = 0;
-		for (size_t i = 0; i < mProfile.size(); i++)
-		{
-			printf("%-40.40s %4.3fms\n", mProfile[i].first.c_str(), mProfile[i].second / TIMING_ITERATIONS);
-			totalTime += mProfile[i].second;
-		}
-		printf("Time over all layers: %4.3f\n", totalTime / TIMING_ITERATIONS);
-	}
-
-} gProfiler;
-
-void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototxt
+bool GIEgoogleNET::caffeToGIEModel(const std::string& deployFile,				// name for caffe prototxt
 					 const std::string& modelFile,				// name for model 
 					 const std::vector<std::string>& outputs,   // network outputs
 					 unsigned int maxBatchSize,					// batch size - NB must be at least as large as the batch we want to run with)
@@ -104,8 +33,15 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	// parse the caffe model to populate the network, then set the outputs
 	ICaffeParser* parser = createCaffeParser();
 
+	//determino se la piattaforma permette le operazioni aritmetiche e tensori con 16 al posto di 32 o 64
 	bool useFp16 = builder->platformHasFastFp16();
 
+	if(useFp16){
+		std::cout << "ok la piattoaforma supporta i calcoli a 16 bit" << std::endl;
+	}
+
+	//determino con un condizionale quale tipo di precisione usare KHALT(16 bit) o KFLOAt(32)
+	//queste configurazioni sono deteminte sia dalla piattaforma che dal modello (pesi a 32 bit float o 16 bit float)
 	DataType modelDataType = useFp16 ? DataType::kHALF : DataType::kFLOAT; // create a 16-bit model if it's natively supported
 	const IBlobNameToTensor *blobNameToTensor =
 		parser->parse(locateFile(deployFile).c_str(),				// caffe deploy file
@@ -113,7 +49,13 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 								 *network,							// network definition that the parser will populate
 								 modelDataType);
 
-	assert(blobNameToTensor != nullptr);
+	if(!blobNameToTensor){
+		std::cout<<"errato a parsare il modello"<<std::endl;
+	}else{
+		std::cout<<"modello parsato correttamente"<<std::endl;
+	}
+	//assert(blobNameToTensor != nullptr);
+	
 	// the caffe file has no notion of outputs, so we need to manually say which tensors the engine should generate	
 	for (auto& s : outputs)
 		network->markOutput(*blobNameToTensor->find(s.c_str()));
@@ -123,48 +65,73 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	builder->setMaxWorkspaceSize(16 << 20);
 
 	// set up the network for paired-fp16 format if available
+	// se posso usare i pesi con precisione 16 bit tale opzione ottimizza i calcoli ovvero
+	// intervalla i tensori a 16 bit di distanza ???
 	if(useFp16)
 		builder->setHalf2Mode(true);
 
+	//Costruisco l'engine
 	ICudaEngine* engine = builder->buildCudaEngine(*network);
-	assert(engine);
+	if(!engine){
+		std::cout<<"fallito a costruire l engine"<<std::endl;
+	}else{
+		std::cout<<"engine costruito"<<std::endl;
+	}
+	//assert(engine);
 
 	// we don't need the network any more, and we can destroy the parser
 	network->destroy();
 	parser->destroy();
 
 	// serialize the engine, then close everything down
+	// ovvero metto in forma binaria salvato su file(plan) l'intero engine con i relativi pesi 
 	gieModelStream = engine->serialize();
 	engine->destroy();
 	builder->destroy();
 	shutdownProtobufLibrary();
+
+	return true;
 }
 
-void timeInference(ICudaEngine* engine, int batchSize)
+bool GIEgoogleNET::timeInference(ICudaEngine* engine, int batchSize)
 {
 	// input and output buffer pointers that we pass to the engine - the engine requires exactly ICudaEngine::getNbBindings(),
 	// of these, but in this case we know that there is exactly one input and one output.
-	assert(engine->getNbBindings() == 2);
+	if(engine->getNbBindings() == 2){
+		std::cout<<"Numero di tensori input e output corretti prosegue" << std::endl;
+	}else{
+		std::cout<<"errore nel settagio input output"<<std::endl;
+		return false;
+	}
+	//alloco i buffer
 	void* buffers[2];
 
 	// In order to bind the buffers, we need to know the names of the input and output tensors.
 	// note that indices are guaranteed to be less than ICudaEngine::getNbBindings()
-	int inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME), outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
+	int inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME), 
+		outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
 
 	// allocate GPU buffers
-	DimsCHW inputDims = static_cast<DimsCHW&&>(engine->getBindingDimensions(inputIndex)), outputDims = static_cast<DimsCHW&&>(engine->getBindingDimensions(outputIndex));
+	// l'oggetto DimsCHW va a calcolare la dimensione del tensor di inpput e output in questo caso
+	// il dato a un solo canale e due varibili per la dimensione spaziale
+	DimsCHW inputDims = static_cast<DimsCHW&&>(engine->getBindingDimensions(inputIndex)), 
+			outputDims = static_cast<DimsCHW&&>(engine->getBindingDimensions(outputIndex));
+	
 	size_t inputSize = batchSize * inputDims.c() * inputDims.h() * inputDims.w() * sizeof(float);
 	size_t outputSize = batchSize * outputDims.c() * outputDims.h() * outputDims.w() * sizeof(float);
 
+	//alloco le memorie per la computazione
 	CHECK(cudaMalloc(&buffers[inputIndex], inputSize));
 	CHECK(cudaMalloc(&buffers[outputIndex], outputSize));
 
+	//creo il contesto di esecuzione
 	IExecutionContext* context = engine->createExecutionContext();
 	context->setProfiler(&gProfiler);
 
 	// zero the input buffer
 	CHECK(cudaMemset(buffers[inputIndex], 0, inputSize));
 
+	//faccio l'inferenza per un tempo controllato
 	for (int i = 0; i < TIMING_ITERATIONS;i++)
 		context->execute(batchSize, buffers);
 
@@ -172,20 +139,25 @@ void timeInference(ICudaEngine* engine, int batchSize)
 	context->destroy();
 	CHECK(cudaFree(buffers[inputIndex]));
 	CHECK(cudaFree(buffers[outputIndex]));
+
+	return true;
 }
 
 
-int main(int argc, char** argv)
+bool GIEgoogleNET::lunch()
 {
 	std::cout << "Building and running a GPU inference engine for GoogleNet, N=4..." << std::endl;
 
 	// parse the caffe model and the mean file
     IHostMemory *gieModelStream{nullptr};
-	caffeToGIEModel("googlenet.prototxt", "googlenet.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, BATCH_SIZE, gieModelStream);
+	
+	if(caffeToGIEModel("googlenet.prototxt", "googlenet.caffemodel", std::vector < std::string > { OUTPUT_BLOB_NAME }, BATCH_SIZE, gieModelStream)){
+		std::cout<<"modello parsata e engine costruito corretamente" <<std::endl;
+	}
 
 	// create an engine
-	IRuntime* infer = createInferRuntime(gLogger);
-	ICudaEngine* engine = infer->deserializeCudaEngine(gieModelStream->data(), gieModelStream->size(), nullptr);
+	infer = createInferRuntime(gLogger);
+	engine = infer->deserializeCudaEngine(gieModelStream->data(), gieModelStream->size(), nullptr);
 
         printf("Bindings after deserializing:\n"); 
         for (int bi = 0; bi < engine->getNbBindings(); bi++) { 
@@ -197,7 +169,9 @@ int main(int argc, char** argv)
            } 
 
 	// run inference with null data to time network performance
-	timeInference(engine, BATCH_SIZE);
+	if(timeInference(engine, BATCH_SIZE)){
+		std::cout<<"inferenza eseguita corretamente"<<std::endl;
+	}
 
 	engine->destroy();
 	infer->destroy();
@@ -206,5 +180,11 @@ int main(int argc, char** argv)
 
 	std::cout << "Done." << std::endl;
 
-	return 0;
+	return true;
+}
+
+GIEgoogleNET::GIEgoogleNET(void)
+{
+	infer = NULL;
+	engine = NULL;
 }
