@@ -1,42 +1,140 @@
-#include "NvInfer.h"
-#include "NvCaffeParser.h"
-#include "cuda_runtime_api.h"
-#include <cassert>
-#include <cmath>
-#include <ctime>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <sstream>
-#include <sys/stat.h>
-#include <vector>
-#include <algorithm>
+#include "sampleMNISTAPI.h"
 
-#define CHECK(status)					\
-{							\
-    if (status != 0)				\
-    {						\
-        std::cout << "Cuda failure: " << status;\
-		abort();				\
-	}						\
+GIEMnistAPI::GIEMnistAPI(void)
+{
+	mRuntime = NULL;
+	mEngine = NULL;
+	mContext = NULL;
 }
 
-// stuff we know about the network and the input/output blobs
-static const int INPUT_H = 28;
-static const int INPUT_W = 28;
-static const int OUTPUT_SIZE = 10;
+GIEMnistAPI::~GIEMnistAPI()
+{
+	if(mEngine != NULL){
+		std::cout<<"distruggo l'istanza ICudaEngine"<< std::endl;
+		mEngine->destroy();
+		mEngine = NULL;
+	}
 
-const char* INPUT_BLOB_NAME = "data";
-const char* OUTPUT_BLOB_NAME = "prob";
+	if(mRuntime != NULL){
+		std::cout<<"distruggo l'istanza IRuntime"<< std::endl;
+		mRuntime->destroy();
+		mRuntime = NULL;
+	}	
+}
 
+void GIEMnistAPI::initAndLunch()
+{
+	// create a model using the API directly and serialize it to a stream
+    IHostMemory *modelStream{nullptr};
 
-using namespace nvinfer1;
-using namespace nvcaffeparser1;
+    /**
+	 *	fase di building
+	 */
+	APIToModel(1, &modelStream);
+
+	// read a random digit file
+	uint8_t* fileData = loadPGMFile();
+
+	// print an ascii representation
+	plotPGMasAsci(fileData);
+	
+	// parse the mean file produced by caffe and subtract it from the image
+	float* data = subtractImage(fileData);
+
+	//istanzione l'oggeto per l'inferenza in tempo reale
+	mRuntime = createInferRuntime(gLogger);
+	//deseriliazzo il modello per fare l'inferenza
+	mEngine = mRuntime->deserializeCudaEngine(modelStream->data(), modelStream->size(), nullptr);
+    if (modelStream) modelStream->destroy();
+
+	//creao il constro per l'esecuzione dell'inferenza
+	mContext = mEngine->createExecutionContext();
+
+    /**
+	 *	fase di deploy 
+	 */
+	doInference(*mContext, data, prob, 1);
+
+	// destroy the engine
+	mContext->destroy();
+	mEngine->destroy();
+	mRuntime->destroy();
+
+	// print a histogram of the output distribution
+	if(plotAsciResult()){
+		std::cout<<"tutto è andato ok"<<std::endl;
+	}
+}
+// We have the data files located in a specific directory. This 
+// searches for that directory format from the current directory.
+std::string GIEMnistAPI::locateFile(const std::string& input)
+{
+	std::string file = "data/samples/mnist/" + input;
+	struct stat info;
+	int i, MAX_DEPTH = 10;
+	for (i = 0; i < MAX_DEPTH && stat(file.c_str(), &info); i++)
+		file = "../" + file;
+
+    if (i == MAX_DEPTH)
+    {
+		file = std::string("data/mnist/") + input;
+		for (i = 0; i < MAX_DEPTH && stat(file.c_str(), &info); i++)
+			file = "../" + file;		
+    }
+
+	assert(i != MAX_DEPTH);
+
+	return file;
+}
+
+// simple PGM (portable greyscale map) reader
+void GIEMnistAPI::readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
+{
+	std::ifstream infile(locateFile(fileName), std::ifstream::binary);
+	std::string magic, h, w, max;
+	infile >> magic >> h >> w >> max;
+	infile.seekg(1, infile.cur);
+	infile.read(reinterpret_cast<char*>(buffer), INPUT_H*INPUT_W);
+}
+
+uint8_t* GIEMnistAPI::loadPGMFile()
+{
+	// read a random digit file
+	srand(unsigned(time(nullptr)));
+	uint8_t * fileData = new uint8_t [INPUT_H*INPUT_W];
+    int num = rand() % 10;
+	readPGMFile(std::to_string(num) + ".pgm", fileData);
+	std::cout <<"indirizzo di fileData: " << &fileData << std::endl;
+	return fileData;
+}
+
+void GIEMnistAPI::plotPGMasAsci(uint8_t fileData[])
+{
+	// print an ascii representation
+	std::cout << "\n\n\n---------------------------" << "\n\n\n" << std::endl;
+	for (int i = 0; i < INPUT_H*INPUT_W; i++)
+		std::cout << (" .:-=+*#%@"[fileData[i] / 26]) << (((i + 1) % INPUT_W) ? "" : "\n");
+}
+
+float* GIEMnistAPI::subtractImage(uint8_t* currentImg)
+{
+	// parse the mean file produced by caffe and subtract it from the image
+	ICaffeParser* parser = createCaffeParser();
+	IBinaryProtoBlob* meanBlob = parser->parseBinaryProto(locateFile("mnist_mean.binaryproto").c_str());
+	parser->destroy();
+	const float *meanData = reinterpret_cast<const float*>(meanBlob->getData());
+
+	float* data = new float[INPUT_H*INPUT_W];
+	for (int i = 0; i < INPUT_H*INPUT_W; i++)
+		data[i] = float(currentImg[i])-meanData[i];
+
+	meanBlob->destroy();
+	return data;
+}
 
 // Our weight files are in a very simple space delimited format.
 // [type] [size] <data x size in hex> 
-std::map<std::string, Weights> loadWeights(const std::string file)
+std::map<std::string, Weights> GIEMnistAPI::loadWeights(const std::string file)
 {
     std::map<std::string, Weights> weightMap;
 	std::ifstream input(file);
@@ -75,52 +173,11 @@ std::map<std::string, Weights> loadWeights(const std::string file)
     return weightMap;
 }
 
-// Logger for info/warning/errors
-class Logger : public ILogger			
-{
-	void log(Severity severity, const char* msg) override
-	{
-		// suppress info-level messages
-		if (severity != Severity::kINFO)
-			std::cout << msg << std::endl;
-	}
-} gLogger;
 
-// We have the data files located in a specific directory. This 
-// searches for that directory format from the current directory.
-std::string locateFile(const std::string& input)
-{
-	std::string file = "data/samples/mnist/" + input;
-	struct stat info;
-	int i, MAX_DEPTH = 10;
-	for (i = 0; i < MAX_DEPTH && stat(file.c_str(), &info); i++)
-		file = "../" + file;
-
-    if (i == MAX_DEPTH)
-    {
-		file = std::string("data/mnist/") + input;
-		for (i = 0; i < MAX_DEPTH && stat(file.c_str(), &info); i++)
-			file = "../" + file;		
-    }
-
-	assert(i != MAX_DEPTH);
-
-	return file;
-}
-
-// simple PGM (portable greyscale map) reader
-void readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
-{
-	std::ifstream infile(locateFile(fileName), std::ifstream::binary);
-	std::string magic, h, w, max;
-	infile >> magic >> h >> w >> max;
-	infile.seekg(1, infile.cur);
-	infile.read(reinterpret_cast<char*>(buffer), INPUT_H*INPUT_W);
-}
 
 // Creat the Engine using only the API and not any parser.
 ICudaEngine *
-createMNISTEngine(unsigned int maxBatchSize, IBuilder *builder, DataType dt)
+GIEMnistAPI::createMNISTEngine(unsigned int maxBatchSize, IBuilder *builder, DataType dt)
 {
 	INetworkDefinition* network = builder->createNetwork();
 
@@ -191,7 +248,7 @@ createMNISTEngine(unsigned int maxBatchSize, IBuilder *builder, DataType dt)
 	return engine;
 }
 
-void APIToModel(unsigned int maxBatchSize, // batch size - NB must be at least as large as the batch we want to run with)
+void GIEMnistAPI::APIToModel(unsigned int maxBatchSize, // batch size - NB must be at least as large as the batch we want to run with)
 		     IHostMemory **modelStream)
 {
 	// create the builder
@@ -208,7 +265,7 @@ void APIToModel(unsigned int maxBatchSize, // batch size - NB must be at least a
 	builder->destroy();
 }
 
-void doInference(IExecutionContext& context, float* input, float* output, int batchSize)
+void GIEMnistAPI::doInference(IExecutionContext& context, float* input, float* output, int batchSize)
 {
 	const ICudaEngine& engine = context.getEngine();
 	// input and output buffer pointers that we pass to the engine - the engine requires exactly IEngine::getNbBindings(),
@@ -240,51 +297,8 @@ void doInference(IExecutionContext& context, float* input, float* output, int ba
 	CHECK(cudaFree(buffers[outputIndex]));
 }
 
-int main(int argc, char** argv)
+bool GIEMnistAPI::plotAsciResult()
 {
-	// create a model using the API directly and serialize it to a stream
-    IHostMemory *modelStream{nullptr};
-
-    APIToModel(1, &modelStream);
-
-	// read a random digit file
-	srand(unsigned(time(nullptr)));
-	uint8_t fileData[INPUT_H*INPUT_W];
-    int num = rand() % 10;
-	readPGMFile(std::to_string(num) + ".pgm", fileData);
-
-	// print an ascii representation
-	std::cout << "\n\n\n---------------------------" << "\n\n\n" << std::endl;
-	for (int i = 0; i < INPUT_H*INPUT_W; i++)
-		std::cout << (" .:-=+*#%@"[fileData[i] / 26]) << (((i + 1) % INPUT_W) ? "" : "\n");
-
-	// parse the mean file produced by caffe and subtract it from the image
-	ICaffeParser* parser = createCaffeParser();
-	IBinaryProtoBlob* meanBlob = parser->parseBinaryProto(locateFile("mnist_mean.binaryproto").c_str());
-	parser->destroy();
-	const float *meanData = reinterpret_cast<const float*>(meanBlob->getData());
-
-	float data[INPUT_H*INPUT_W];
-	for (int i = 0; i < INPUT_H*INPUT_W; i++)
-		data[i] = float(fileData[i])-meanData[i];
-
-	meanBlob->destroy();
-
-	IRuntime* runtime = createInferRuntime(gLogger);
-	ICudaEngine* engine = runtime->deserializeCudaEngine(modelStream->data(), modelStream->size(), nullptr);
-    if (modelStream) modelStream->destroy();
-
-	IExecutionContext *context = engine->createExecutionContext();
-
-	// run inference
-	float prob[OUTPUT_SIZE];
-	doInference(*context, data, prob, 1);
-
-	// destroy the engine
-	context->destroy();
-	engine->destroy();
-	runtime->destroy();
-
 	// print a histogram of the output distribution
 	std::cout << "\n\n";
     float val{0.0f};
@@ -297,5 +311,5 @@ int main(int argc, char** argv)
     }
 	std::cout << std::endl;
 
-	return (idx == num && val > 0.9f) ? EXIT_SUCCESS : EXIT_FAILURE;
+	return (idx == getNum() && val > 0.9f) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
