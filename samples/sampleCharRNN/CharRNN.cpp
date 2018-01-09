@@ -1,8 +1,9 @@
+#include <iostream>
 #include "CharRNN.h"
 
 CharRNN::CharRNN(void):tensorNet()
 {
-	std::cout<<"creo il CharRNN"<<std::endl;
+	std::cout<<LOG_CHR<<"creo il CharRNN"<<std::endl;
 }
 
 // Our weight files are in a very simple space delimited format.
@@ -11,6 +12,7 @@ CharRNN::CharRNN(void):tensorNet()
 // for each buffer: [name] [type] [size] <data x size in hex> 
 std::map<std::string, Weights> CharRNN::loadWeights(const std::string file)
 {
+	std::cout<<LOG_CHR<<"carico il file dei pesi"<<std::endl;
     std::map<std::string, Weights> weightMap;
     std::ifstream input(file);
     assert(input.is_open() && "Unable to load weight file.");
@@ -23,6 +25,7 @@ std::map<std::string, Weights> CharRNN::loadWeights(const std::string file)
         uint32_t type, size;
         std::string name;
         input >> name >> std::dec >> type >> size;
+		std::cout<<LOG_CHR<<"pesi: "<<name<<" tipo: "<<type<<std::endl;
         wt.type = static_cast<DataType>(type);
         if (wt.type == DataType::kFLOAT)
         {
@@ -33,6 +36,7 @@ std::map<std::string, Weights> CharRNN::loadWeights(const std::string file)
 
             }
             wt.values = val;
+			std::cout<<LOG_CHR<<"peso: "<<name<<" valore: "<<wt.values<<std::endl;
         } else if (wt.type == DataType::kHALF)
         {
             uint16_t *val = reinterpret_cast<uint16_t*>(malloc(sizeof(val) * size));
@@ -41,10 +45,12 @@ std::map<std::string, Weights> CharRNN::loadWeights(const std::string file)
                 input >> std::hex >> val[x];
             }
             wt.values = val;
+			std::cout<<LOG_CHR<<"peso: "<<name<<" valore: "<<wt.values<<std::endl;
         }
         wt.count = size;
         weightMap[name] = wt;
     }
+	std::cout<<LOG_CHR<<"generato la mappa dei pesi a partire dal file"<<std::endl;
     return weightMap;
 }
 
@@ -73,12 +79,15 @@ std::string CharRNN::locateFile(const std::string& input)
 
 void CharRNN::init()
 {
+	std::cout<<LOG_CHR<<"funzione principale"<<std::endl;
     srand(unsigned(time(nullptr)));
     
 	std::map<std::string, Weights> weightMap = loadWeights(locateFile("char-rnn.wts"));
     
+	std::cout<<LOG_CHR<<"creo oggetto charRNN"<<std::endl;
 	CharRNN* RNN = new CharRNN();
 	//costruisco l'engine
+	std::cout<<LOG_CHR<<"costruisco lengine a parire dai pesi e dal file serilizzato"<<std::endl;
 	RNN->APIToModel(weightMap, &gieModelStream);
 
 	//seleziono una frase random

@@ -4,6 +4,7 @@
 #include  <iostream>
 #include "tensorNet.h"
 
+#define LOG_CHR "[RNN] "
 
 #define CHECK(status)					\
 {							\

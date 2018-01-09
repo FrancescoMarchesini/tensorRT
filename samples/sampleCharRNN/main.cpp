@@ -1,5 +1,4 @@
 #include "CharRNN.h"
-
 // To train the model that this sample uses the dataset can be found here:
 // http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz
 //
@@ -25,8 +24,9 @@
 
 int main(){
 
-
+	std::cout<<"--------------------MAIN----------------------"<<std::endl;
 	CharRNN t;  
 	t.init();
+	std::cout<<"--------------------END----------------------"<<std::endl;
 	return 0;	
 };

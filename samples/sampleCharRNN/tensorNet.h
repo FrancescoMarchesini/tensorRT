@@ -24,6 +24,8 @@
 // and emitting the word to id and id to word mappings from
 // the checkpoint data after loading it.
 // The only difference is that in the data set that was used,
+
+//conversione delle lettere in interi
 static std::map<char, int> char_to_id{{'#', 40},
     { '$', 31}, { '\'', 28}, { '&', 35}, { '*', 49},
     { '-', 32}, { '/', 48}, { '.', 27}, { '1', 37},
@@ -41,6 +43,7 @@ static std::map<char, int> char_to_id{{'#', 40},
 };
 
 // A mapping from index to character.
+// il contrario
 static std::vector<char> id_to_char{{' ', 'e', 't', 'a',
     'n', 'o', 'i', 's', 'r', 'h', 'l', 'u', 'd', 'c',
     'm', 'f', 'p', 'k', 'g', 'y', 'b', 'w', '<', '>',
@@ -102,12 +105,12 @@ class tensorNet
 	protected:
 		tensorNet()
 		{
-			 mRuntime=NULL;			 //esecuzione dell'inferenza
-			 mEngine=NULL;		 //engine
+			 mRuntime=NULL;	 //esecuzione dell'inferenza
+			 mEngine=NULL;	 //engine
 			 mContext=NULL; //eseguzione kernel
 		}
 		//tag per il logger
-		#define LOG_GIE "[GIE] " 
+		#define LOG_GIE "[TSN] " 
 		// Logger for info/warning/errors
 		class Logger : public nvinfer1::ILogger			
 		{
