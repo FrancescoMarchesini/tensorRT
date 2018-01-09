@@ -13,13 +13,14 @@
 #include "NvInfer.h"
 #include "NvUtils.h"
 
-#define CHECK(status)					\
-{							\
-    if (status != 0)				\
-    {						\
-        std::cout << "Cuda failure: " << status;\
-        abort();				\
-    }						\
+#define LOG_PLG "[PLG] "
+inline void CHECK(int status)							
+{												
+    if (status != 0)							
+    {											
+        std::cout<<"Cuda failure: " << status;  
+        abort();								
+    }											
 }
 
 using namespace nvinfer1;
@@ -29,13 +30,14 @@ using namespace nvinfer1;
 class Reshape : public IPlugin
 {
 public:
+
 	Reshape(size_t size) : mSize(size) {}
 
 	//costruttore	
 	Reshape(const void*buf, size_t size)
     {
         assert(size == sizeof(mSize));
-		std::cout << "grandezza del tensore: "<< size << std::endl;
+		std::cout << LOG_PLG <<"grandezza del tensore: "<< size << std::endl;
         mSize = *static_cast<const size_t*>(buf);
     }
 
@@ -44,17 +46,21 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////
 	
 	//Numero di tensori di output
-	int getNbOutputs() const override{	return 1;	}
+	int getNbOutputs() const override
+	{
+		std::cout<< LOG_PLG <<"numero di tensori di output: "<< 1 << std::endl;	
+		return 1;	
+	}
 	
 	// The RNN outputs in {L, N, C}, but FC layer needs {C, 1, 1}, so we can convert RNN
     // output to {L*N, C, 1, 1} and TensorRT will handle the rest.
 	//Funzione per ritornare la grandezza del tensore
 	Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override
 	{
-		std::cout << "determino la grandezza delle parti che compongono il tensore" << std::endl;
-        if(nbInputDims == 1){std::cout<<"dimensione input 1 OK"<<std::endl;};
-        if(index == 0){std::cout<<"indice è a 0  OK"<<std::endl;};
-        if(inputs[index].nbDims == 3){std::cout<<"3 canali 1 diemsione e sapziali OK";};
+		std::cout << LOG_PLG<<"determino la grandezza delle parti che compongono il tensore" << std::endl;
+        if(nbInputDims == 1){std::cout<<LOG_PLG<<"dimensione input 1 OK"<<std::endl;};
+        if(index == 0){std::cout<<LOG_PLG<<"indice è a 0  OK"<<std::endl;};
+        if(inputs[index].nbDims == 3){std::cout<<LOG_PLG<<"3 canali: 1 dimensione e 2 spazialiOK";};
 		return DimsNCHW(inputs[index].d[1] * inputs[index].d[0], inputs[index].d[2], 1, 1);
 
 	}
@@ -65,30 +71,45 @@ public:
 	
 	//la configurazione dell engine con la possibilità di scegliere l'algoritmo in base alla dimensione del tensore di input.
 	// Il metodo è chiamato solo una volta nel momento della costruzione dell engine. Per questo per usare le configurazione 
+	// runtime
 	// a runtime bisogna salvarla in una varibile da usare succesivamente
-	void configure(const Dims*, int, const Dims*, int, int)	override{ }
+	void configure(const Dims*, int, const Dims*, int, int)	override
+	{
+		std::cout<<LOG_PLG<<"override della funzione configure"<<std::endl;
+	}
 	
 	//spazio di lavoro utilizzato da tensoRT nel momento della costruzione dell'engine
-	//una speci di memoria condivisa tra i tensori	
-	size_t getWorkspaceSize(int) const override{	return 0;	}
-	
+	//una specie di memoria condivisa tra i tensori	
+	size_t getWorkspaceSize(int) const override
+	{	
+		std::cout<<LOG_PLG<<"override della funzione configure"<<std::endl;
+		return 0;
+	}	
 	//////////////////////////////////////////////////////////////////////////////////
 	//Utilizzati a runtime
 	/////////////////////////////////////////////////////////////////////////////////
 	
 	//funzioni per allocare e disallocare le risorse tali funzioni sono chimate
 	//da IExecutionContext a runtime
-	int initialize() override{	return 0;	}
+	int initialize() override
+	{	
+		std::cout<<LOG_PLG<<"override della funzione initialized"<<std::endl;
+		return 0;
+	}	
 
 	//esecuzione a runtime dei singoli layer	
 	int enqueue(int batchSize, const void*const * inputs, void** outputs, void* workspace, cudaStream_t stream)
     {
+		std::cout<<LOG_PLG<<" metto in coda ogni singolo layer e lo copio nella memoria CUDA"<<std::endl;
         CHECK(cudaMemcpyAsync(static_cast<float*>(outputs[0]),
                    static_cast<const float*>(inputs[0]),
                    sizeof(float) * mSize * batchSize, cudaMemcpyDefault, stream));
         return 0;
     }
-	void terminate() override{}
+	void terminate() override
+	{
+		std::cout<<LOG_PLG<<"override della funzione terminate"<<std::endl;
+	}
 
 	//////////////////////////////////////////////////////////////////////////////////
 	//Serializzazione dell'engine
@@ -103,8 +124,8 @@ public:
 	//serializzo su file lengine
 	void serialize(void* buffer) override
     {
+		std::cout<<LOG_PLG<<"serializzo l'engine su file binario"<<std::endl;
         (*static_cast<size_t*>(buffer)) = mSize;
-
     }
 
     
@@ -122,13 +143,14 @@ public:
 	// deserialization plugin implementation
 	IPlugin* createPlugin(const char* layerName, const void* serialData, size_t serialLength) override
 	{
-		std::cout<<"aggiungo il layer tramite la deserializazione dell'engine"<<std::endl;
+		std::cout<<LOG_PLG<<"aggiungo il layer tramite la deserializazione dell'engine"<<std::endl;
         assert(!strncmp(layerName, "reshape", 7));
         if (!mPlugin) mPlugin = new Reshape(serialData, serialLength);
         return mPlugin;
     }
     void destroyPlugin()
     {
+		std::cout<<LOG_PLG<<"Distruggo l'istanza del plugin"<<std::endl;
         if (mPlugin) delete mPlugin;
         mPlugin = nullptr;
     }
