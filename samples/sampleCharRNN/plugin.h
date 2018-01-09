@@ -10,8 +10,17 @@
 #include <iostream>
 #include "cuda_runtime_api.h"
 
-#include "Nvinfer1.h"
+#include "NvInfer.h"
 #include "NvUtils.h"
+
+#define CHECK(status)					\
+{							\
+    if (status != 0)				\
+    {						\
+        std::cout << "Cuda failure: " << status;\
+        abort();				\
+    }						\
+}
 
 using namespace nvinfer1;
 
@@ -43,10 +52,11 @@ public:
 	Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override
 	{
 		std::cout << "determino la grandezza delle parti che compongono il tensore" << std::endl;
-        if(nbInputDims == 1){std::cout<<"dimensione input 1 OK"<<std::endl;}
-        if(index == 0){std::cout<<"indice è a 0  OK"<<std::endl;}
-        if(inputs[index].nbDims == 3){std::cout<<"3 canali 1 diemsione e sapziali OK"};
+        if(nbInputDims == 1){std::cout<<"dimensione input 1 OK"<<std::endl;};
+        if(index == 0){std::cout<<"indice è a 0  OK"<<std::endl;};
+        if(inputs[index].nbDims == 3){std::cout<<"3 canali 1 diemsione e sapziali OK";};
 		return DimsNCHW(inputs[index].d[1] * inputs[index].d[0], inputs[index].d[2], 1, 1);
+
 	}
 	
 	//////////////////////////////////////////////////////////////////////////////////
