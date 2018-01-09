@@ -2,6 +2,7 @@
 
 Weights tensorNet::convertRNNWeights(Weights input)
 {
+	std::cout<<LOG_GIE<<"converto i pesi"<<std::endl;
     float* ptr = static_cast<float*>(malloc(sizeof(float)*input.count));
     int indir[4]{ 1, 2, 0, 3 };
     int order[5]{ 0, 1, 4, 2, 3};
@@ -12,6 +13,7 @@ Weights tensorNet::convertRNNWeights(Weights input)
     int layerOffset = 8 * subMatrix;
     for (int z = 0; z < LAYER_COUNT; ++z)
     {
+		std::cout<<LOG_GIE<<"itero in tutti i layer che sono: "<< z <<std::endl;
         utils::reorderSubBuffers(ptr + z * layerOffset, indir, 4, subMatrix * sizeof(float));
         utils::reorderSubBuffers(ptr + z * layerOffset + 4 * subMatrix, indir, 4, subMatrix * sizeof(float));
     }
@@ -21,19 +23,26 @@ Weights tensorNet::convertRNNWeights(Weights input)
 
 Weights tensorNet::convertRNNBias(Weights input)
 {
+	std::cout<<LOG_GIE<<"converto i bias"<<std::endl;
     float* ptr = static_cast<float*>(malloc(sizeof(float)*input.count*2));
     std::fill(ptr, ptr + input.count*2, 0);
     const float* iptr = static_cast<const float*>(input.values);
     int indir[4]{ 1, 2, 0, 3 };
     for (int z = 0, y = 0; z < LAYER_COUNT; ++z)
+	{
         for (int x = 0; x < 4; ++x, ++y)
+		{
+			std::cout<<LOG_GIE<<"itero in tutti i layer che sono: "<< z << y << x <<std::endl;
             std::copy(iptr + y * HIDDEN_SIZE , iptr + (y + 1) * HIDDEN_SIZE, ptr + (z * 8 + indir[x]) * HIDDEN_SIZE);
-    return Weights{input.type, ptr, input.count*2};
+			return Weights{input.type, ptr, input.count*2};
+		}
+	};
 }
 
 
 Weights tensorNet::transposeFCWeights(Weights input)
 {
+	std::cout<<LOG_GIE<<"trasporto dei pesi"<<std::endl;
     float* ptr = static_cast<float*>(malloc(sizeof(float)*input.count));
     const float* iptr = static_cast<const float*>(input.values);
     assert(input.count == HIDDEN_SIZE * OUTPUT_SIZE);
@@ -45,6 +54,7 @@ Weights tensorNet::transposeFCWeights(Weights input)
 
 void tensorNet::APIToModel(std::map<std::string, Weights> &weightMap, IHostMemory **modelStream)
 {
+	std::cout<<LOG_GIE<<"Creo il modello tramire le API "<<std::endl;
     // create the builder
     IBuilder* builder = createInferBuilder(gLogger);
 
@@ -124,6 +134,8 @@ void tensorNet::APIToModel(std::map<std::string, Weights> &weightMap, IHostMemor
 void tensorNet::stepOnce(float **data, void **buffers, int *sizes, int *indices,
         int numBindings, cudaStream_t &stream, IExecutionContext &context)
 {
+
+	std::cout<<LOG_GIE<<"step uno prima dell'inferenza"<<std::endl;
     for (int z = 0, w = numBindings/2; z < w; ++z)
         CHECK(cudaMemcpyAsync(buffers[indices[z]], data[z], sizes[z] * sizeof(float), cudaMemcpyHostToDevice, stream));
 
@@ -131,9 +143,10 @@ void tensorNet::stepOnce(float **data, void **buffers, int *sizes, int *indices,
     context.enqueue(1, buffers, stream, nullptr);
 
     // DMA the input from the GPU
-    for (int z = numBindings/2, w = numBindings; z < w; ++z)
+    for (int z = numBindings/2, w = numBindings; z < w; ++z){
+		std::cout<<LOG_GIE<<"Copio tutto nei buffer della GPU grandezza "<<sizes[z] * sizeof(float)<<std::endl;
         CHECK(cudaMemcpyAsync(data[z], buffers[indices[z]], sizes[z] * sizeof(float), cudaMemcpyDeviceToHost, stream));
-
+	}
     // Copy Ct/Ht to the Ct-1/Ht-1 slots.
     CHECK(cudaMemcpyAsync(data[1], buffers[indices[4]], sizes[1] * sizeof(float), cudaMemcpyDeviceToHost, stream));
     CHECK(cudaMemcpyAsync(data[2], buffers[indices[5]], sizes[2] * sizeof(float), cudaMemcpyDeviceToHost, stream));
@@ -141,6 +154,7 @@ void tensorNet::stepOnce(float **data, void **buffers, int *sizes, int *indices,
 
 bool tensorNet::doInference(IExecutionContext& context, std::string input, std::string expected, std::map<std::string, Weights> &weightMap)
 {
+	std::cout<<LOG_GIE<<"Inferenza"<<std::endl;
     const ICudaEngine& engine = context.getEngine();
     // We have 6 outputs for LSTM, this needs to be changed to 4 for any other RNN type
     static const int numBindings = 6;
@@ -168,20 +182,24 @@ bool tensorNet::doInference(IExecutionContext& context, std::string input, std::
 
     for (int x = 0; x < numBindings; ++x)
     {
+		std::cout<<LOG_GIE<<"numero di output da bindare "<< numBindings<<std::endl;
         // In order to bind the buffers, we need to know the names of the input and output tensors.
         // note that indices are guaranteed to be less than IEngine::getNbBindings()
         indices[x] = engine.getBindingIndex(names[x]);
         if (indices[x] == -1) continue;
         // create GPU buffers and a stream
         assert(indices[x] < numBindings);
+		std::cout<<LOG_GIE<<"alloco memoria sulla GPU "<<std::endl;
         CHECK(cudaMalloc(&buffers[indices[x]], sizes[x] * sizeof(float)));
         data[x] = new float[sizes[x]];
     }
     cudaStream_t stream;
     CHECK(cudaStreamCreate(&stream));
     // Initialize input/hidden/cell state to zero
-    for (int x = 0; x < numBindings; ++x) std::fill(data[x], data[x] + sizes[x], 0.0f);
-
+    for (int x = 0; x < numBindings; ++x) {
+		std::cout<<LOG_GIE<<"inizializzo tutto a zero"<<std::endl;
+		std::fill(data[x], data[x] + sizes[x], 0.0f);
+	}
     auto embed = weightMap["embed"];
     std::string genstr;
     assert(BATCH_SIZE == 1 && "This code assumes batch size is equal to 1.");
@@ -216,6 +234,7 @@ bool tensorNet::doInference(IExecutionContext& context, std::string input, std::
     cudaStreamDestroy(stream);
     for (int x = 0; x < numBindings; ++x)
     {
+		std::cout<<LOG_GIE<<"free de GPU "<< std::endl;
         CHECK(cudaFree(buffers[indices[x]]));
         if (data[x]) delete [] data[x];
     }
