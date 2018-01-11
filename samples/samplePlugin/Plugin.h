@@ -11,9 +11,9 @@
 #include <cuda_runtime_api.h>
 #include <cudnn.h>
 #include <cublas_v2.h>
-#include <memory>
 #include <string.h>
 #include "utils.h"
+
 using namespace::nvinfer1;
 using namespace::nvcaffeparser1;
 
