@@ -11,9 +11,16 @@ class tensorNet
 {
 	public:
 		tensorNet(int input_h, int input_w, int output_size, std::string input_blob_name, std::string output_blob_name);
-		void importTrainedCaffeModel(const std::string& deployFile, const std::string& modelFile, const std::vector<std::string>& outputs, unsigned int maxBatchSize, nvcaffeparser1::IPluginFactory* pluginFactory, IHostMemory *&gieModelStream);					    
-		void doInference(IExecutionContext& context, float* input, float* output, int batchSize);
-	
+		
+		void importTrainedCaffeModel(const std::string& deployFile, 
+				const std::string& modelFile, 
+				const std::vector<std::string>& outputs, 
+				unsigned int maxBatchSize); 
+		
+		void doInference(float* input, float* output, int batchSize);
+
+		void plotClassification(float* output);
+
 		bool initBuilderSize(IBuilder* builder, unsigned int maxBatchSize, bool fp16);
 		
 		class Logger : public ILogger			
@@ -39,5 +46,10 @@ class tensorNet
 			const char* input_blob_name;
 			const char* output_blob_name;
 		}system;
+
+		PluginFactory pluginFactory;
+		IHostMemory *gieModelStream{nullptr};
+		IRuntime* runtime;
+		ICudaEngine* engine;
 };
 #endif

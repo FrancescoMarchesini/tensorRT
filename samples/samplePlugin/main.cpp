@@ -14,13 +14,10 @@
 #define LOG_MAIN "[LOG_MAIN] "
 int main(int argc, char** argv)
 {
-	std::cout<<LOG_MAIN<<"----------Start-----------"<<std::endl;
+	std::cout<<LOG_MAIN<<"----------START-----------"<<std::endl;
 
-	PluginFactory pluginFactory;
-	IHostMemory *gieModelStream{nullptr};
 	tensorNet * net = new tensorNet(INPUT_W, INPUT_H, OUTPUT_SIZE, INPUT_BLOB_NAME, OUTPUT_BLOB_NAME);
-	net->importTrainedCaffeModel("mnist.prototxt", "mnist.caffemodel", std::vector<std::string>{OUTPUT_BLOB_NAME}, 1, &pluginFactory, gieModelStream);
-	pluginFactory.destroyPlugin();
+	net->importTrainedCaffeModel("mnist.prototxt", "mnist.caffemodel", std::vector<std::string>{OUTPUT_BLOB_NAME}, 1);
 	std::cout<<LOG_MAIN<<"modello caricato correttamente e distruzione dell'interfaccia PLugin"<<std::endl;
 
 	std::cout<<LOG_MAIN<<"leggo file"<<std::endl;
@@ -46,34 +43,11 @@ int main(int argc, char** argv)
 	for(int i=0; i<INPUT_H*INPUT_W; i++){
 		data[i] = float(fileData[i]) - meanData[i];
 	}
-	std::cout<<LOG_MAIN<<"distrutto il punatore mean dopo averlo usato"<<std::endl;
-	meanBlob->destroy();
-
-	std::cout<<LOG_MAIN<<"faccio l'inferza"<<std::endl;
-	std::cout<<LOG_MAIN<<"creo il meccanismo di inferenza runtime"<<std::endl;
-	IRuntime* runtime = createInferRuntime(net->gLogger);
-
-	std::cout<<LOG_MAIN<<"Creo l'engine a partire dal runtime serializzato"<<std::endl;
-	ICudaEngine* engine = runtime->deserializeCudaEngine(gieModelStream->data(), gieModelStream->size(), &pluginFactory);
-
-	std::cout<<LOG_MAIN<<"Creo il contesto per l'esecuzione dei kernel"<<std::endl;
-	IExecutionContext *context = engine->createExecutionContext();
 
 	float prob[OUTPUT_SIZE];
-	net->doInference(*context, data, prob, 1);	
+	net->doInference(data, prob, 1);	
+	net->plotClassification(prob);
 	
-	std::cout<<LOG_MAIN<<"distruggo tutti gli oggetti"<<std::endl;
-	context->destroy();
-	engine->destroy();
-	runtime->destroy();
-	pluginFactory.destroyPlugin();
-	
-	// print a histogram of the output distribution
-	std::cout << "\n\n";
-	for (unsigned int i = 0; i < 10; i++){
-		std::cout << i << ": " << std::string(int(std::floor(prob[i] * 10 + 0.5f)), '*') << "\n";
-		std::cout << std::endl;
-	}
-		
+	std::cout<<LOG_MAIN<<"----------END-----------"<<std::endl;
 	return 0;	
 };
