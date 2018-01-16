@@ -1,6 +1,15 @@
 #include "TensorNet.h"
 
-#define LOG_GIE "[LOG_GIE_ ]"
+#define LOG_GIE "[LOG_GIE] "
+
+tensorNet::tensorNet(int input_h, int input_w, int output_size, std::string input_blob_name, std::string output_blob_name)
+{
+	system.input_h = input_h;
+	system.input_w = input_w;
+	system.output_size = output_size;
+	system.input_blob_name = input_blob_name.c_str();
+	system.output_blob_name = output_blob_name.c_str();	
+}
 
 void tensorNet::importTrainedCaffeModel(const std::string& deployFile,	// name for caffe prototxt
 					 const std::string& modelFile,					    // name for model 
@@ -21,7 +30,7 @@ void tensorNet::importTrainedCaffeModel(const std::string& deployFile,	// name f
 
 	bool fp16 = builder->platformHasFastFp16();
 	if(fp16)
-		std::cout<<LOG_GIE<<"bella storia c'è il suporto per fp16 ovvero dataType KHALF"std::endl;
+		std::cout<<LOG_GIE<<"bella storia c'è il suporto per fp16 ovvero dataType KHALF"<<std::endl;
 	
 	std::cout<<LOG_GIE<<"Mappo i blob di Caffe sui tensori parsando il modello"<<std::endl;
 	const IBlobNameToTensor* blobNameToTensor = parser->parse(locateFile(deployFile).c_str(),
@@ -38,7 +47,7 @@ void tensorNet::importTrainedCaffeModel(const std::string& deployFile,	// name f
 	}
 
 	// Build the engine
-	if(initBuilderSize(builder, maxBatchSize, fp16){
+	if(initBuilderSize(builder, maxBatchSize, fp16)){
 		std::cout<<LOG_GIE<<"parametri ok"<<std::endl;
 	}
 
@@ -56,8 +65,7 @@ void tensorNet::importTrainedCaffeModel(const std::string& deployFile,	// name f
 	builder->destroy();
 	shutdownProtobufLibrary();
 }
-
-bool initBuilderSize(IBuilder& builder, unsigned int maxBatchSize, bool fp16)
+bool tensorNet::initBuilderSize(IBuilder* builder, unsigned int maxBatchSize, bool fp16)
 {
 	builder->setMaxBatchSize(maxBatchSize);
 	builder->setMaxWorkspaceSize(1 << 20);
@@ -65,8 +73,9 @@ bool initBuilderSize(IBuilder& builder, unsigned int maxBatchSize, bool fp16)
 	return true;
 }
 
-void doInference(IExecutionContext& context, float* input, float* output, int batchSize)
+void tensorNet::doInference(nvinfer1::IExecutionContext& context, float* input, float* output, int batchSize)
 {
+
 	const ICudaEngine& engine = context.getEngine();
 	// input and output buffer pointers that we pass to the engine - the engine requires exactly IEngine::getNbBindings(),
 	// of these, but in this case we know that there is exactly one input and one output.
@@ -75,25 +84,27 @@ void doInference(IExecutionContext& context, float* input, float* output, int ba
 
 	// In order to bind the buffers, we need to know the names of the input and output tensors.
 	// note that indices are guaranteed to be less than IEngine::getNbBindings()
-	int inputIndex = engine.getBindingIndex(INPUT_BLOB_NAME), 
-		outputIndex = engine.getBindingIndex(OUTPUT_BLOB_NAME);
+	int inputIndex = engine.getBindingIndex(system.input_blob_name), 
+		outputIndex = engine.getBindingIndex(system.output_blob_name);
 
 	// create GPU buffers and a stream
-	CHECK(cudaMalloc(&buffers[inputIndex], batchSize * INPUT_H * INPUT_W * sizeof(float)));
-	CHECK(cudaMalloc(&buffers[outputIndex], batchSize * OUTPUT_SIZE * sizeof(float)));
+	CHECK_CUDA(cudaMalloc(&buffers[inputIndex], batchSize * system.input_h * system.input_w * sizeof(float)));
+	CHECK_CUDA(cudaMalloc(&buffers[outputIndex], batchSize * system.output_size * sizeof(float)));
 
 	cudaStream_t stream;
-	CHECK(cudaStreamCreate(&stream));
+	CHECK_CUDA(cudaStreamCreate(&stream));
 
 	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
-	CHECK(cudaMemcpyAsync(buffers[inputIndex], input, batchSize * INPUT_H * INPUT_W * sizeof(float), cudaMemcpyHostToDevice, stream));
+	CHECK_CUDA(cudaMemcpyAsync(buffers[inputIndex], input, batchSize * system.input_h * system.input_w  * sizeof(float), cudaMemcpyHostToDevice, stream));
 	context.enqueue(batchSize, buffers, stream, nullptr);
-	CHECK(cudaMemcpyAsync(output, buffers[outputIndex], batchSize * OUTPUT_SIZE*sizeof(float), cudaMemcpyDeviceToHost, stream));
+	CHECK_CUDA(cudaMemcpyAsync(output, buffers[outputIndex], batchSize * system.output_size *sizeof(float), cudaMemcpyDeviceToHost, stream));
 	cudaStreamSynchronize(stream);
 
 	// release the stream and the buffers
 	cudaStreamDestroy(stream);
-	CHECK(cudaFree(buffers[inputIndex]));
-	CHECK(cudaFree(buffers[outputIndex]));
+	CHECK_CUDA(cudaFree(buffers[inputIndex]));
+	CHECK_CUDA(cudaFree(buffers[outputIndex]));
+
+
 }
 

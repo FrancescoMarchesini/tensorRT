@@ -11,11 +11,22 @@
 #include <cuda_runtime_api.h>
 #include <cudnn.h>
 #include <cublas_v2.h>
-#include <string.h>
 #include "utils.h"
+
+#include <assert.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <sys/stat.h>
+#include <cmath>
+#include <time.h>
+#include <memory>
+#include <string.h>
 
 using namespace::nvinfer1;
 using namespace::nvcaffeparser1;
+
 
 class FCPlugin: public IPlugin
 {
@@ -72,7 +83,6 @@ public:
 	{
 		assert(index == 0 && nbInputDims == 1 && inputs[0].nbDims == 3);
 		assert(mNbInputChannels == inputs[0].d[0] * inputs[0].d[1] * inputs[0].d[2]);
-		std::cout<<"input[0]: "<<input[0]<<std::endl;
 		return DimsCHW(mNbOutputChannels, 1, 1);
 	}
 
@@ -179,17 +189,17 @@ private:
 		std::cout<<LOG_CUDA<<"Copio i dati dall'host al device"<<std::endl;
 		CHECK_CUDA(cudaMemcpy(deviceData, hostData, count * sizeof(float), cudaMemcpyHostToDevice));
 
-		std::cout<<LOG_CUDA<<"ritorno i pesi calcolati: tipo=KFLOAT, valore="<<*deviceData<<" numero di pesi= "<< count <<std::endl;
+		std::cout<<LOG_CUDA<<"ritorno i pesi calcolati: tipo=KFLOAT, valore="<<&deviceData<<" numero di pesi= "<< count <<std::endl;
 		return Weights{ DataType::kFLOAT, deviceData, int64_t(count) };
 	}
 
 	void serializeFromDevice(char*& hostBuffer, Weights deviceWeights)
 	{	
 		std::cout<<LOG_CUDA<<"Serializzo i Pesi dal Device All'Host"<<std::endl;	
-		std::cout<<LOG_CUDA<<"valore= "<< deviceWeights.values<<" numero="<<deviceWeights.cout<<std::endl;	
+		std::cout<<LOG_CUDA<<"valore= "<< deviceWeights.values<<" numero="<<deviceWeights.count<<std::endl;	
 		cudaMemcpy(hostBuffer, deviceWeights.values, deviceWeights.count * sizeof(float), cudaMemcpyDeviceToHost);
 		hostBuffer += deviceWeights.count * sizeof(float);
-		std::cout<LOG_CUDA<<"grandezza finale della Host memory = "<<*hostBuffer<<std::endl;
+		std::cout<<LOG_CUDA<<"grandezza finale della Host memory = "<<std::endl;
 	}
 
 	Weights deserializeToDevice(const char*& hostBuffer, size_t count)

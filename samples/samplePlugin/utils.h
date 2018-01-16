@@ -2,8 +2,15 @@
 #define __UTILS_H__
 
 #include <iostream>
+#include <assert.h>
+#include <fstream>
+#include <sstream>
+#include <cmath>
+#include <sys/stat.h>
+#include <time.h>
+#include <string.h>
 
-#define LOG_CUDA "[CUDA ]"
+#define LOG_CUDA "[CUDA] "
 inline void CHECK_CUDA(int status)
 {
 	if(status !=0)
@@ -33,7 +40,7 @@ inline std::string locateFile(const std::string& input)
 }
 
 // simple PGM (portable greyscale map) reader
-inline void readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INPUT_W])
+inline void readPGMFile(const std::string& fileName,  uint8_t buffer[], int INPUT_H, int INPUT_W)
 {
 	std::ifstream infile(locateFile(fileName), std::ifstream::binary);
 	std::string magic, h, w, max;
@@ -42,4 +49,4 @@ inline void readPGMFile(const std::string& fileName,  uint8_t buffer[INPUT_H*INP
 	infile.read(reinterpret_cast<char*>(buffer), INPUT_H*INPUT_W);
 }
 
-#endif;
+#endif
