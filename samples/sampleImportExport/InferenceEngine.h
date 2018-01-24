@@ -11,6 +11,7 @@
 #include "NvCaffeParser.h"
 #include <iostream>
 #define LOG_GIE "[GIE] "
+
 class motoreDiInferenza
 {
 	public:
