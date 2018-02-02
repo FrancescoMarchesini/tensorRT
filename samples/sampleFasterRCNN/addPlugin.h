@@ -17,9 +17,9 @@
 #include "NvInfer.h"
 
 
-//ing namespace nvcaffeparser1;
+using namespace nvcaffeparser1;
 using namespace nvinfer1;
-//using namespace plugin;
+using namespace plugin;
 
 int poolingH = 7;
 int poolingW = 7;
@@ -66,7 +66,7 @@ public:
 			printf("%sInstanzione l'unique ptr per l'oggetto RPROIFused", LOG_PLUG);
 			printf("%sPasso i parametri al layer", LOG_PLUG);
 			mPluginRPROI = std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)>
-				(nvinfer1::plugin::createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
+				(createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
 					DimsHW(poolingH, poolingW), 
 					Weights{ nvinfer1::DataType::kFLOAT, anchorsRatios, anchorsRatioCount },
 					Weights{ nvinfer1::DataType::kFLOAT, anchorsScales, anchorsScaleCount }), nvPluginDeleter);
@@ -96,14 +96,14 @@ public:
 			assert(mPluginRshp18 == nullptr);
 			printf("%sInstanzione l'unique ptr per l'oggetto resiale ReshapeCTo18", LOG_PLUG);
 			mPluginRshp18 = std::unique_ptr<Reshape<18>>(new Reshape<18>(serialData, serialLength));
-			return mPluginRshp8.get();
+			return mPluginRshp18.get();
 		}
 		else if(!strcmp(layerName, "RPROIFused"))
 		{
 			assert(mPluginRPROI =nullptr);
 			printf("%sInstanzione l'unique ptr per l'oggetto resiale RPROIFused", LOG_PLUG);
 			mPluginRPROI = std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)>
-				(nvinfer1::plugin::createFasterRCNNPlugin(serialData, serialLength), PluginDeleter);
+				(createFasterRCNNPlugin(serialData, serialLength), nvPluginDeleter);
 			return mPluginRPROI.get();
 		}
 		else
@@ -130,13 +130,12 @@ public:
 			|| !strcmp(name, "RPROIFused");
 	}
 
-	
-	//Creo l'oggeto Reshape come puntatore unico, il puntatore unico e derivato dagli Smart Pointer
+			//Creo l'oggeto Reshape come puntatore unico, il puntatore unico e derivato dagli Smart Pointer
 	//un oggetto per un e unica allocazione di risorse.
 	std::unique_ptr<Reshape<2>> mPluginRshp2{ nullptr };
 	std::unique_ptr<Reshape<18>> mPluginRshp18{ nullptr };
-	void(*nvPluginDeleter)(nvinfer1::plugin::INvPlugin*){[](nvinfer1::plugin::INvPlugin* ptr){ptr->destroy();}};
-	std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)> mPluginRPROI{nullptr, nvPluginDeleter};
+	void(*nvPluginDeleter)(INvPlugin*){[](INvPlugin* ptr){ptr->destroy();}};
+	std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)> mPluginRPROI{nullptr, nvPluginDeleter};
 };
 
 #endif
