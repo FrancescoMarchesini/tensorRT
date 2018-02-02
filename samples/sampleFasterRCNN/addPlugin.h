@@ -41,21 +41,21 @@ public:
 	//parsing del modello dal file .protxt e creazione dei layer
 	virtual nvinfer1::IPlugin* createPlugin(const char* layerName, const nvinfer1::Weights* weights, int nbWeights) override
 	{
-		printf("%sCreazione del layer dei Plugin", LOG_PLUG);
+		printf("%sCreazione del layer dei Plugin\n", LOG_PLUG);
 		assert(isPlugin(layerName));
 		if(!strcmp(layerName, "ReshapeCTo2"))
 		{
 			assert(mPluginRshp2 == nullptr);
 			assert(nbWeights == 0 && weights == nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto ReshapeCTo2", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto ReshapeCTo2\n", LOG_PLUG);
 			mPluginRshp2 = std::unique_ptr<Reshape<2>>(new Reshape<2>());
 			return mPluginRshp2.get();
 		}
 		else if(!strcmp(layerName, "ReshapeCTo18"))
 		{
-			assert(mPluginRshp2 == nullptr);
+			assert(mPluginRshp18 == nullptr);
 			assert(nbWeights == 0 && weights == nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto ReshapeCTo18", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto ReshapeCTo18\n", LOG_PLUG);
 			mPluginRshp18 = std::unique_ptr<Reshape<18>>(new Reshape<18>());
 			return mPluginRshp18.get();
 		}
@@ -63,8 +63,8 @@ public:
 		{
 			assert(mPluginRPROI == nullptr);
 			assert(nbWeights == 0 && weights == nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto RPROIFused", LOG_PLUG);
-			printf("%sPasso i parametri al layer", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto RPROIFused\n", LOG_PLUG);
+			printf("%sPasso i parametri al layer\n", LOG_PLUG);
 			mPluginRPROI = std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)>
 				(createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
 					DimsHW(poolingH, poolingW), 
@@ -82,26 +82,26 @@ public:
 	//creazione dei layer dal file plancreazione dei layer dal file planee 
 	IPlugin* createPlugin(const char* layerName, const void* serialData, size_t serialLength) override
 	{		
-		printf("%sCreazione del Plugin tramite Serial Data", LOG_PLUG);
+		printf("%sCreazione del Plugin tramite Serial Data\n", LOG_PLUG);
 		assert(isPlugin(layerName));
 		if(!strcmp(layerName, "ReshapeCTo2"))
 		{
 			assert(mPluginRshp2 == nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto resiale ReshapeCTo2", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto resiale ReshapeCTo2\n", LOG_PLUG);
 			mPluginRshp2 = std::unique_ptr<Reshape<2>>(new Reshape<2>(serialData, serialLength));
 			return mPluginRshp2.get();
 		}
 		else if(!strcmp(layerName, "ReshapeCTo18"))
 		{
 			assert(mPluginRshp18 == nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto resiale ReshapeCTo18", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto resiale ReshapeCTo18\n", LOG_PLUG);
 			mPluginRshp18 = std::unique_ptr<Reshape<18>>(new Reshape<18>(serialData, serialLength));
 			return mPluginRshp18.get();
 		}
 		else if(!strcmp(layerName, "RPROIFused"))
 		{
 			assert(mPluginRPROI =nullptr);
-			printf("%sInstanzione l'unique ptr per l'oggetto resiale RPROIFused", LOG_PLUG);
+			printf("%sInstanzione l'unique ptr per l'oggetto resiale RPROIFused\n", LOG_PLUG);
 			mPluginRPROI = std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)>
 				(createFasterRCNNPlugin(serialData, serialLength), nvPluginDeleter);
 			return mPluginRPROI.get();
@@ -115,7 +115,7 @@ public:
 
 	void destroyPlugin()
 	{	
-		printf("%sdistruggo tuttoooo ",LOG_PLUG);
+		printf("%sdistruggo tuttoooo\n",LOG_PLUG);
 		mPluginRshp2.release(); mPluginRshp2 = nullptr;
 		mPluginRshp18.release(); mPluginRshp18 = nullptr;
 		mPluginRPROI.release(); mPluginRPROI = nullptr;
@@ -124,7 +124,7 @@ public:
 	//funzione bool per vedere se il layer è uno di quelli che devono essere manualmente implementati
 	bool isPlugin(const char* name) override
 	{
-		printf("%sil nome del layer è:%s ", LOG_PLUG, name);
+		printf("%sil nome del layer è:%s\n", LOG_PLUG, name);
 		return !strcmp(name, "ReshapeCTo2")
 			|| !strcmp(name, "ReshapeCTo18")
 			|| !strcmp(name, "RPROIFused");

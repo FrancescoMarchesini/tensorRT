@@ -45,10 +45,10 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
                                             trained_file.c_str(),
                                             *network,
                                             DataType::kFLOAT);
-	printf("%sHo finito di parsare il modello", LOG_GIE);
+	printf("%sHo finito di parsare il modello\n", LOG_GIE);
 	
     
-	printf("%sDetermino i tensori di output", LOG_GIE);
+	printf("%sDetermino i tensori di output\n", LOG_GIE);
     for(auto&s : output){
 		printf("%s%s", LOG_GIE, s.c_str());
 		network->markOutput(*blob_name_to_tensor->find(s.c_str()));
@@ -57,7 +57,7 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
     builder->setMaxBatchSize(1);
     builder->setMaxWorkspaceSize(1 << 30);
 
-	printf("%scostruisco l'engine", LOG_GIE);
+	printf("%scostruisco l'engine\n", LOG_GIE);
     engine_ = builder->buildCudaEngine(*network);
 
 	if(modelToPlane("tensorPlan"))
@@ -136,7 +136,7 @@ void InferenceEngine::Import(const std::string& plan_file)
 
 bool InferenceEngine::modelToPlane(const std::string& plan_file)  
 {
-	std::cout<<LOG_GIE<<"serializzo il modello su file?"<<std::endl;
+	std::cout<<LOG_GIE<<"serializzo il modello su file?\n"<<std::endl;
 	std::ofstream gieModelStream(plan_file.c_str(), std::ofstream::binary); 	
 	nvinfer1::IHostMemory* serMem = engine_->serialize();
 	gieModelStream.write((const char*)serMem->data(), serMem->size());

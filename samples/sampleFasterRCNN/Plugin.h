@@ -20,19 +20,19 @@ public:
 	{
 		printf("%sCostruttore del Plugin Reshape\
 				fa una resize dell'input senza cambiare\
-				i dati all'interno :)", LOG_PLUG);
+				i dati all'interno :)\n", LOG_PLUG);
 	}
 	
 	Reshape(const void* buffer, size_t size)
 	{
 		printf("%sCostruttore del Plugin Reshape\
 				fa una resize dell'input senza cambiare\
-				i dati all'interno :)", LOG_PLUG);
+				i dati all'interno :)\n", LOG_PLUG);
 		assert(size == sizeof(mCopySize));
 		mCopySize = *reinterpret_cast<const size_t*>(buffer);
 	}
 
-	~Reshape(){printf("%sAsta la Vista Baby", LOG_PLUG);}
+	~Reshape(){printf("%sAsta la Vista Baby\n", LOG_PLUG);}
 	
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,19 +48,19 @@ public:
 
 	Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override
 	{
-		printf("%s definisco la dimensione del tensore per il layer in questione", LOG_PLUG);
-		printf("%s questo tensore a 3 dimensione : 1 canale 1 widht 1 height", LOG_PLUG);
+		printf("%s definisco la dimensione del tensore per il layer in questione\n", LOG_PLUG);
+		printf("%s questo tensore a 3 dimensione : 1 canale 1 widht 1 height\n", LOG_PLUG);
 		assert(index == 0 && nbInputDims == 1 && inputs[index].nbDims == 3);
 		assert((inputs[0].d[0]) * (inputs[0].d[1]) %OutC == 0);
 //		Dims* a = new DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]);
 		//printf("%s canale: %d, widht: %d, height: %d", LOG_PLUG, a->c(), a->w(), a->h());
-		printf("%s capire perche???", LOG_PLUG);
+		printf("%s capire perche???\n", LOG_PLUG);
 	return(DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]));
 	}
 
 	void configure(const Dims* inputs, int nbInputs, const Dims* outputDims, int nbOutputs, int maxBatchSize) override
 	{
-		printf("%s configurazione della nuova dimensione", LOG_PLUG);
+		printf("%sconfigurazione della nuova dimensione\n", LOG_PLUG);
 		mCopySize = inputs[0].d[0] * inputs[0].d[1] * inputs[0].d[2] * sizeof(float);
 	}
 
@@ -72,19 +72,19 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	int initialize() override
 	{
-		printf("%sinizializzazione del layer rashape senza conf costum", LOG_PLUG);
+		printf("%sinizializzazione del layer rashape senza conf costum\n", LOG_PLUG);
 		return 0;
 	}
 
 	virtual void terminate() override
 	{
-		printf("%stermine del layer rashape", LOG_PLUG);
+		printf("%stermine del layer rashape\n", LOG_PLUG);
 	}
 	
 
 	virtual size_t getWorkspaceSize(int maxBatchSize) const override
 	{
-		printf("%sspazione di lavoro run time del tensore", LOG_PLUG);
+		printf("%sspazione di lavoro run time del tensore\n", LOG_PLUG);
 		return 0;
 	}
 
@@ -94,7 +94,7 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	virtual int enqueue(int batchSize, const void*const * inputs, void** outputs, void* workspace, cudaStream_t stream) override
 	{
-		printf("%scopio i dati da una parte del device all'altra input out poichè il plugin non può eseguire codice in loco:(", LOG_PLUG);
+		printf("%scopio i dati da una parte del device all'altra input out poichè il plugin non può eseguire codice in loco:(\n", LOG_PLUG);
 		CHECK_CUDA(cudaMemcpyAsync(outputs[0], inputs[0], mCopySize * batchSize, cudaMemcpyDeviceToDevice));
 		return 0;
 	}
@@ -105,13 +105,13 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	virtual size_t getSerializationSize() override
 	{
-		printf("%sritorno di byte = %d per allocara la memoria per la serializzazione di McopySize", LOG_PLUG, sizeof(mCopySize));
+		printf("%sritorno di byte = %d per allocara la memoria per la serializzazione di McopySize\n", LOG_PLUG, sizeof(mCopySize));
 		return sizeof(mCopySize);
 	}
 
 	virtual void serialize(void* buffer) override
 	{
-		printf("%sserializzo il layer in questione", LOG_PLUG);
+		printf("%sserializzo il layer in questione\n", LOG_PLUG);
 		*reinterpret_cast<size_t*>(buffer) = mCopySize;
 	}
 
