@@ -1,8 +1,7 @@
 #include <iostream>
-//#include "InferenceEngine.h"
-//#include "NvInfer.h"
-//#include "NvCaffeParser.h"
-//#include "addPlugin.h"
+#include "InferenceEngine.h"
+#include "NvInfer.h"
+#include "NvCaffeParser.h"
 #include "addPlugin.h"
 
 #define LOG_MAIN "[MAIN] "
@@ -24,14 +23,14 @@ struct parametri{
 	
 }rete;
 
-//using namespace::nvinfer1;
-//using namespace::nvcaffeparser1;
+using namespace::nvinfer1;
+using namespace::nvcaffeparser1;
 
 
 int main(int argc, char** argv){
 		
 	printf("%sCreo un GIE dal modello Caffe e lo serializzo",LOG_MAIN);
-/*	pluginFactory pluginFactory;
+	PluginFactory pluginFactory;
 	IHostMemory *gieModelStream{ nullptr};
 
 	const int N = 2;
@@ -44,6 +43,6 @@ int main(int argc, char** argv){
 	InferenceEngine gie = InferenceEngine(proto_path, model_path, 
 			std::vector<std::string>{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3}, 
 			N,  &pluginFactory, &gieModelStream);
-*/
+
 	return 0;
 };
