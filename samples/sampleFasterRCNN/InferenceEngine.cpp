@@ -1,13 +1,8 @@
-#include <fstream>
-
-#include "NvCaffeParser.h"
 #include "InferenceEngine.h"
 
-#include <iostream>
-#include <sstream>
-using namespace nvinfer1;
-using namespace nvcaffeparser1;
-using std::string;
+using namespace::nvinfer1;
+using namespace::nvcaffeparser1;
+
 #define LOG_GIE "[CULO] "
 class Logger : public ILogger
 {
@@ -16,7 +11,7 @@ class Logger : public ILogger
         // suppress info-level messages
         if (severity != Severity::kINFO)
             std::cout << msg << std::endl;
-    }
+    };
 }gLogger;
 
 
@@ -25,43 +20,48 @@ InferenceEngine::InferenceEngine()
 
 }
 
-InferenceEngine(const std::string& model_file,
+InferenceEngine::InferenceEngine(const std::string& model_file,
                 const std::string& trained_file,
 			    const std::vector<std::string>& output,
-				unsigned int bathSize);
+				unsigned int bathSize,
+				nvcaffeparser1::IPluginFactory* pluginFactory,
+				IHostMemory **gieModelStream)
 
 {
 	std::cout<<LOG_GIE<<"creo il builder"<<std::endl;
 	IBuilder* builder = createInferBuilder(gLogger);
 
-	std::cout<<LOG_GIE<<"creo il network dal builder"<std::endl;
+	std::cout<<LOG_GIE<<"creo il network dal builder"<<std::endl;
     INetworkDefinition* network = builder->createNetwork();
 
-	std::cout<<LOG_GIE<<"creo il parser"<std::endl;
+	std::cout<<LOG_GIE<<"creo il parser"<<std::endl;
     ICaffeParser* parser = createCaffeParser();
 
+	std::cout<<LOG_GIE<<"creo il plugin"<<std::endl;
+	parser->setPluginFactory(pluginFactory);
 
-	//////////////////////////////////////////////////////////////
-	//qui devo mettere il plugin per il parse del modello costum//
-	//														    //
-	//////////////////////////////////////////////////////////////
-	
-
+	std::cout<<LOG_GIE<<"incomincio a parsere il modello"<<std::endl;
     auto blob_name_to_tensor = parser->parse(model_file.c_str(),
                                             trained_file.c_str(),
                                             *network,
                                             DataType::kFLOAT);
-    blob_name_to_tensor;
-
-    // specify which tensors are outputs
-    network->markOutput(*blob_name_to_tensor->find("prob"));
-
+	printf("%sHo finito di parsare il modello", LOG_GIE);
+	
+    
+	printf("%sDetermino i tensori di output", LOG_GIE);
+    for(auto&s : output){
+		printf("%s%s", LOG_GIE, s.c_str());
+		network->markOutput(*blob_name_to_tensor->find(s.c_str()));
+	}
     // Build the engine
     builder->setMaxBatchSize(1);
     builder->setMaxWorkspaceSize(1 << 30);
 
+	printf("%scostruisco l'engine", LOG_GIE);
     engine_ = builder->buildCudaEngine(*network);
-    engine_;
+
+	if(modelToPlane("tensorPlan"))
+		printf("%sYEs baby", LOG_GIE);
 
     network->destroy();
     builder->destroy();
@@ -72,7 +72,7 @@ InferenceEngine::~InferenceEngine()
     engine_->destroy();
 }
 
-void InferenceEngine::Import(const string& plan_file) 
+void InferenceEngine::Import(const std::string& plan_file) 
 {
 	std::stringstream gieModelStream;
 	gieModelStream.seekg(0, gieModelStream.beg);
@@ -134,10 +134,11 @@ void InferenceEngine::Import(const string& plan_file)
 	}
 }
 
-void InferenceEngine::Export(const string& plan_file) const 
+bool InferenceEngine::modelToPlane(const std::string& plan_file)  
 {
-	std::cout<<LOG_GIE<<"serializzo il modello su file"<<std::endl;
+	std::cout<<LOG_GIE<<"serializzo il modello su file?"<<std::endl;
 	std::ofstream gieModelStream(plan_file.c_str(), std::ofstream::binary); 	
 	nvinfer1::IHostMemory* serMem = engine_->serialize();
 	gieModelStream.write((const char*)serMem->data(), serMem->size());
+	return(true);
 }

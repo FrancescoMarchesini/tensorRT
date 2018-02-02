@@ -10,7 +10,6 @@
 #include <assert.h>
 
 using namespace::nvinfer1;
-using namespace::nvcaffeparser1;
 
 #define LOG_PLUG "[PLG] "
 template<int OutC>
@@ -33,7 +32,7 @@ public:
 		mCopySize = *reinterpret_cast<const size_t*>(buffer);
 	}
 
-	~Reshape(){printf("%sAsta la Vista Baby", LOG_PLUG)}
+	~Reshape(){printf("%sAsta la Vista Baby", LOG_PLUG);}
 	
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,16 +48,17 @@ public:
 
 	Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override
 	{
-		printf("%s definisco la dimensione del tensore per il layer in questione", LOG_PLUG)
-		printf("%s questo tensore a 3 dimensione : 1 canale 1 widht 1 height", LOG_PLUG)
+		printf("%s definisco la dimensione del tensore per il layer in questione", LOG_PLUG);
+		printf("%s questo tensore a 3 dimensione : 1 canale 1 widht 1 height", LOG_PLUG);
 		assert(index == 0 && nbInputDims == 1 && inputs[index].nbDims == 3);
 		assert((inputs[0].d[0]) * (inputs[0].d[1]) %OutC == 0);
-		Dims* a = new DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]);
-		printf("%s canale: %d, widht: %d, height: %d", LOG_PLUG, a->c(), a->w(), a->h());
-		return a;
+//		Dims* a = new DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]);
+		//printf("%s canale: %d, widht: %d, height: %d", LOG_PLUG, a->c(), a->w(), a->h());
+		printf("%s capire perche???", LOG_PLUG);
+	return(DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]));
 	}
 
-	void configure(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs, int maxBatchSize) override
+	void configure(const Dims* inputs, int nbInputs, const Dims* outputDims, int nbOutputs, int maxBatchSize) override
 	{
 		printf("%s configurazione della nuova dimensione", LOG_PLUG);
 		mCopySize = inputs[0].d[0] * inputs[0].d[1] * inputs[0].d[2] * sizeof(float);
@@ -95,7 +95,7 @@ public:
 	virtual int enqueue(int batchSize, const void*const * inputs, void** outputs, void* workspace, cudaStream_t stream) override
 	{
 		printf("%scopio i dati da una parte del device all'altra input out poichè il plugin non può eseguire codice in loco:(", LOG_PLUG);
-		CHECK_CUDA(cudaMemcpyAsync(output[0], inputs[0], mCopySize * batchSize, cudaMemcpyDeviceToDevice);
+		CHECK_CUDA(cudaMemcpyAsync(outputs[0], inputs[0], mCopySize * batchSize, cudaMemcpyDeviceToDevice));
 		return 0;
 	}
 

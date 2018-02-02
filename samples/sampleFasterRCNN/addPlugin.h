@@ -12,7 +12,27 @@
 #include <iostream>
 #include <memory> //classe per unique_ptr o smart_pointer
 #include "Plugin.h"
+#include "NvCaffeParser.h"
 #include "NvInferPlugin.h"
+#include "NvInfer.h"
+
+
+//ing namespace nvcaffeparser1;
+using namespace nvinfer1;
+//using namespace plugin;
+
+int poolingH = 7;
+int poolingW = 7;
+int featureStride = 16;
+int preNmsTop = 6000;
+int nmsMaxOut = 300;
+int anchorsRatioCount = 3;
+int anchorsScaleCount = 3;
+float iouThreshold = 0.7f;
+float minBoxSize = 16;
+float spatialScale = 0.0625f;
+float anchorsRatios[3] = { 0.5f, 1.0f, 2.0f };
+float anchorsScales[3] = { 8.0f, 16.0f, 32.0f };
 
 class PluginFactory : public nvinfer1::IPluginFactory, public nvcaffeparser1::IPluginFactory
 {
@@ -45,8 +65,8 @@ public:
 			assert(nbWeights == 0 && weights == nullptr);
 			printf("%sInstanzione l'unique ptr per l'oggetto RPROIFused", LOG_PLUG);
 			printf("%sPasso i parametri al layer", LOG_PLUG);
-			mPluginRPROI = std::unique_ptr<nvinfer1::INvPlugin, decltype(nvinfer1::nvPluginDeleter)>
-				(nvinfer1::createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
+			mPluginRPROI = std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)>
+				(nvinfer1::plugin::createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
 					DimsHW(poolingH, poolingW), 
 					Weights{ nvinfer1::DataType::kFLOAT, anchorsRatios, anchorsRatioCount },
 					Weights{ nvinfer1::DataType::kFLOAT, anchorsScales, anchorsScaleCount }), nvPluginDeleter);
@@ -60,7 +80,7 @@ public:
 	}
 
 	//creazione dei layer dal file plancreazione dei layer dal file planee 
-	nvinfer1::IPlugin* createPlugin(const char* layerName, const void* serialData, size_t serialLength) override
+	IPlugin* createPlugin(const char* layerName, const void* serialData, size_t serialLength) override
 	{		
 		printf("%sCreazione del Plugin tramite Serial Data", LOG_PLUG);
 		assert(isPlugin(layerName));
@@ -78,12 +98,12 @@ public:
 			mPluginRshp18 = std::unique_ptr<Reshape<18>>(new Reshape<18>(serialData, serialLength));
 			return mPluginRshp8.get();
 		}
-		else(!strcmp(layerName, "RPROIFused")
+		else if(!strcmp(layerName, "RPROIFused"))
 		{
 			assert(mPluginRPROI =nullptr);
 			printf("%sInstanzione l'unique ptr per l'oggetto resiale RPROIFused", LOG_PLUG);
 			mPluginRPROI = std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)>
-				(nvinfer1::createFasterRCNNPlugin(serialData, serialLength), PluginDeleter);
+				(nvinfer1::plugin::createFasterRCNNPlugin(serialData, serialLength), PluginDeleter);
 			return mPluginRPROI.get();
 		}
 		else
@@ -107,31 +127,16 @@ public:
 		printf("%sil nome del layer è:%s ", LOG_PLUG, name);
 		return !strcmp(name, "ReshapeCTo2")
 			|| !strcmp(name, "ReshapeCTo18")
-			|| !strcmp(name, "RPROIFused")
+			|| !strcmp(name, "RPROIFused");
 	}
 
-
-private:
-	//parametri della creazione del layer presi direttamente dal paper sopra citato
-	int poolingH = 7;
-	int poolingW = 7;
-	int featureStride = 16;
-	int preNmsTop = 6000;
-	int nmsMaxOut = 300;
-	int anchorsRatioCount = 3;
-	int anchorsScaleCount = 3;
-	float iouThreshold = 0.7f;
-	float minBoxSize = 16;
-	float spatialScale = 0.0625f;
-	float anchorsRatios[3] = { 0.5f, 1.0f, 2.0f };
-	float anchorsScales[3] = { 8.0f, 16.0f, 32.0f };
 	
 	//Creo l'oggeto Reshape come puntatore unico, il puntatore unico e derivato dagli Smart Pointer
 	//un oggetto per un e unica allocazione di risorse.
 	std::unique_ptr<Reshape<2>> mPluginRshp2{ nullptr };
 	std::unique_ptr<Reshape<18>> mPluginRshp18{ nullptr };
-	void(*nvinfer1::nvPluginDeleter)(nvinfer1::INvPlugin*){[](nvinfer1::INvPlugin* ptr){ptr->destroy();}};
-	std::unique_ptr<nvinfer1::INvPlugin, decltype(nvPluginDeleter)> mPluginRPROI{nullptr, nvinfer1::nvPluginDeleter};
+	void(*nvPluginDeleter)(nvinfer1::plugin::INvPlugin*){[](nvinfer1::plugin::INvPlugin* ptr){ptr->destroy();}};
+	std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)> mPluginRPROI{nullptr, nvPluginDeleter};
 };
 
 #endif

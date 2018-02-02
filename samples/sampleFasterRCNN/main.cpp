@@ -1,4 +1,10 @@
 #include <iostream>
+//#include "InferenceEngine.h"
+//#include "NvInfer.h"
+//#include "NvCaffeParser.h"
+//#include "addPlugin.h"
+#include "addPlugin.h"
+
 #define LOG_MAIN "[MAIN] "
 //parametri del network
 struct parametri{
@@ -18,12 +24,26 @@ struct parametri{
 	
 }rete;
 
-//queste sono le classi che il network può trovare
-const std::string CLASSES[21]{ "background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor" };
+//using namespace::nvinfer1;
+//using namespace::nvcaffeparser1;
+
 
 int main(int argc, char** argv){
-	for(int i=0; i<rete.output_class; i++)
-		printf("%sclasse = %s\n",LOG_MAIN, CLASSES[i].c_str());
+		
+	printf("%sCreo un GIE dal modello Caffe e lo serializzo",LOG_MAIN);
+/*	pluginFactory pluginFactory;
+	IHostMemory *gieModelStream{ nullptr};
+
+	const int N = 2;
+	printf("%sBatchSize= %d",LOG_MAIN, N);
 	
+	std::string proto_path = "../../data/faster-rcnn/faster_rcnn_test_plugin.prototxt" ; 
+	std::string model_path = "../../data/faster-rcnn/VGG16_faster_rcnn_final.caffemodel";  
+
+	printf("%sInstanzione l'infere engine",LOG_MAIN);
+	InferenceEngine gie = InferenceEngine(proto_path, model_path, 
+			std::vector<std::string>{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3}, 
+			N,  &pluginFactory, &gieModelStream);
+*/
 	return 0;
-}
+};
