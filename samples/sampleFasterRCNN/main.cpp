@@ -34,15 +34,16 @@ int main(int argc, char** argv){
 	IHostMemory *gieModelStream{ nullptr};
 
 	const int N = 2;
-	printf("%sBatchSize= %d",LOG_MAIN, N);
+	printf("%sBatchSize= %d\n",LOG_MAIN, N);
 	
 	std::string proto_path = "../../data/faster-rcnn/faster_rcnn_test_iplugin.prototxt" ; 
 	std::string model_path = "../../data/faster-rcnn/VGG16_faster_rcnn_final.caffemodel";  
 
 	printf("%sInstanzione l'infere engine\n",LOG_MAIN);
-	InferenceEngine gie = InferenceEngine(proto_path, model_path, 
-			std::vector<std::string>{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3}, 
-			N,  &pluginFactory, &gieModelStream);
-
+	//InferenceEngine gie = InferenceEngine(proto_path, model_path, 
+	//		std::vector<std::string>{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3}, 
+	//		N,  &pluginFactory, &gieModelStream);
+	InferenceEngine gie = InferenceEngine();
+	gie.planeToModel("tensorPlan");
 	return 0;
 };

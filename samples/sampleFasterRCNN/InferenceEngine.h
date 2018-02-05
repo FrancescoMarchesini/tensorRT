@@ -29,7 +29,7 @@ public:
 
     ~InferenceEngine();
 
-    void Import(const std::string& plan_file);
+    bool planeToModel(const std::string& plan_file);
     bool modelToPlane(const std::string& plan_file);
 
     nvinfer1::ICudaEngine* Get() const

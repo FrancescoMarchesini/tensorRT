@@ -18,16 +18,12 @@ class Reshape: public IPlugin
 public:
 	Reshape()
 	{
-		printf("%sCostruttore del Plugin Reshape\
-				fa una resize dell'input senza cambiare\
-				i dati all'interno :)\n", LOG_PLUG);
+		printf("%sCostruttore dell'oggeto Reshape:)\n", LOG_PLUG);
 	}
 	
 	Reshape(const void* buffer, size_t size)
 	{
-		printf("%sCostruttore del Plugin Reshape\
-				fa una resize dell'input senza cambiare\
-				i dati all'interno :)\n", LOG_PLUG);
+		printf("%sCostruttore dell'oggetto Reshape\n", LOG_PLUG);
 		assert(size == sizeof(mCopySize));
 		mCopySize = *reinterpret_cast<const size_t*>(buffer);
 	}
@@ -48,13 +44,12 @@ public:
 
 	Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override
 	{
-		printf("%s definisco la dimensione del tensore per il layer in questione\n", LOG_PLUG);
-		printf("%s questo tensore a 3 dimensione : 1 canale 1 widht 1 height\n", LOG_PLUG);
+		printf("%sdefinisco la dimensione del tensore per il layer in questione\n", LOG_PLUG);
 		assert(index == 0 && nbInputDims == 1 && inputs[index].nbDims == 3);
 		assert((inputs[0].d[0]) * (inputs[0].d[1]) %OutC == 0);
-//		Dims* a = new DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]);
-		//printf("%s canale: %d, widht: %d, height: %d", LOG_PLUG, a->c(), a->w(), a->h());
-		printf("%s capire perche???\n", LOG_PLUG);
+		printf("%sNumero Canali = %d\n",LOG_PLUG,(int)OutC);
+		printf("%sHeight del tensore = %d\n", LOG_PLUG, inputs[0].d[0] * inputs[0].d[1] / OutC );
+		printf("%swidht del tensore = %d\n", LOG_PLUG, inputs[0].d[2]);
 	return(DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]));
 	}
 
@@ -62,6 +57,7 @@ public:
 	{
 		printf("%sconfigurazione della nuova dimensione\n", LOG_PLUG);
 		mCopySize = inputs[0].d[0] * inputs[0].d[1] * inputs[0].d[2] * sizeof(float);
+		printf("%sbysite = %d\n", LOG_PLUG, mCopySize);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +68,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	int initialize() override
 	{
-		printf("%sinizializzazione del layer rashape senza conf costum\n", LOG_PLUG);
+		printf("%sinizializzazione del layer \n", LOG_PLUG);
 		return 0;
 	}
 

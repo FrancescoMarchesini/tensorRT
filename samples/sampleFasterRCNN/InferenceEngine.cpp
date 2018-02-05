@@ -3,7 +3,7 @@
 using namespace::nvinfer1;
 using namespace::nvcaffeparser1;
 
-#define LOG_GIE "[CULO] "
+#define LOG_GIE "[GIE] "
 class Logger : public ILogger
 {
     void log(Severity severity, const char* msg) override
@@ -15,10 +15,7 @@ class Logger : public ILogger
 }gLogger;
 
 
-InferenceEngine::InferenceEngine()
-{
-
-}
+InferenceEngine::InferenceEngine(){}
 
 InferenceEngine::InferenceEngine(const std::string& model_file,
                 const std::string& trained_file,
@@ -40,7 +37,7 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 	std::cout<<LOG_GIE<<"creo il plugin"<<std::endl;
 	parser->setPluginFactory(pluginFactory);
 
-	std::cout<<LOG_GIE<<"incomincio a parsere il modello"<<std::endl;
+	std::cout<<LOG_GIE<<"Parsing del modello"<<std::endl;
     auto blob_name_to_tensor = parser->parse(model_file.c_str(),
                                             trained_file.c_str(),
                                             *network,
@@ -48,9 +45,8 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 	printf("%sHo finito di parsare il modello\n", LOG_GIE);
 	
     
-	printf("%sDetermino i tensori di output\n", LOG_GIE);
     for(auto&s : output){
-		printf("%s%s", LOG_GIE, s.c_str());
+		printf("%stensore di output: %s\n", LOG_GIE, s.c_str());
 		network->markOutput(*blob_name_to_tensor->find(s.c_str()));
 	}
     // Build the engine
@@ -60,10 +56,13 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 	printf("%scostruisco l'engine\n", LOG_GIE);
     engine_ = builder->buildCudaEngine(*network);
 
-	if(modelToPlane("tensorPlan"))
-		printf("%sYEs baby", LOG_GIE);
+//	if(modelToPlane("tensorPlan"))
+//		printf("%sYEs baby\n", LOG_GIE);
 
-    network->destroy();
+//	if(planeToModel("tensorPlan"))
+//		printf("%sYEs baby\n", LOG_GIE);
+    
+	network->destroy();
     builder->destroy();
 }
 
@@ -72,7 +71,7 @@ InferenceEngine::~InferenceEngine()
     engine_->destroy();
 }
 
-void InferenceEngine::Import(const std::string& plan_file) 
+bool InferenceEngine::planeToModel(const std::string& plan_file) 
 {
 	std::stringstream gieModelStream;
 	gieModelStream.seekg(0, gieModelStream.beg);
@@ -132,11 +131,13 @@ void InferenceEngine::Import(const std::string& plan_file)
 	}else{
 		std::cout<<LOG_GIE<<"Bella storia possiamo fare inferenze :) "<<std::endl;
 	}
+
+	return true;
 }
 
 bool InferenceEngine::modelToPlane(const std::string& plan_file)  
 {
-	std::cout<<LOG_GIE<<"serializzo il modello su file?\n"<<std::endl;
+	std::cout<<LOG_GIE<<"serializzo il modello su file?"<<std::endl;
 	std::ofstream gieModelStream(plan_file.c_str(), std::ofstream::binary); 	
 	nvinfer1::IHostMemory* serMem = engine_->serialize();
 	gieModelStream.write((const char*)serMem->data(), serMem->size());
