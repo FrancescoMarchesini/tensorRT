@@ -28,7 +28,7 @@ public:
 		mCopySize = *reinterpret_cast<const size_t*>(buffer);
 	}
 
-	~Reshape(){printf("%sAsta la Vista Baby\n", LOG_PLUG);}
+	~Reshape(){printf("%sHasta la Vista Baby\n", LOG_PLUG);}
 	
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////

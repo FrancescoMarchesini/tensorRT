@@ -20,7 +20,8 @@ using namespace nvcaffeparser1;
 using namespace nvinfer1;
 using namespace plugin;
 
-int poolingH = 7;
+/*
+int poolingH =  7
 int poolingW = 7;
 int featureStride = 16;
 int preNmsTop = 6000;
@@ -32,6 +33,37 @@ float minBoxSize = 16;
 float spatialScale = 0.0625f;
 float anchorsRatios[3] = { 0.5f, 1.0f, 2.0f };
 float anchorsScales[3] = { 8.0f, 16.0f, 32.0f };
+*/
+class info
+{
+    public:
+    info()
+    {
+        poolingH = 7;
+        poolingW = 7;
+        featureStride = 16;
+        preNmsTop = 6000;
+        nmsMaxOut = 300;
+        anchorsRatioCount = 3;
+        anchorsScaleCount = 3;
+        iouThreshold = 0.7f;
+        minBoxSize = 16;
+        spatialScale = 0.0625f;
+    }
+
+    int poolingH;
+    int poolingW;
+    int featureStride;
+    int preNmsTop;
+    int nmsMaxOut;
+    int anchorsRatioCount;
+    int anchorsScaleCount;
+    float iouThreshold;
+    float minBoxSize;
+    float spatialScale;
+    float anchorsRatios[3]={ 0.5f, 1.0f, 2.0f };
+    float anchorsScales[3]={ 8.0f, 16.0f, 32.0f };
+};
 
 #define LOG_ADD "[ADD_PLG] "
 class PluginFactory : public nvinfer1::IPluginFactory, public nvcaffeparser1::IPluginFactory
@@ -66,10 +98,10 @@ public:
 			printf("%sInstanzio l'unique ptr per l'oggetto RPROIFused\n", LOG_ADD);
 			printf("%sCreo il plugin FasterRCNNPlugin \n", LOG_ADD);
 			mPluginRPROI = std::unique_ptr<nvinfer1::plugin::INvPlugin, decltype(nvPluginDeleter)>
-				(createFasterRCNNPlugin(featureStride, preNmsTop, nmsMaxOut, iouThreshold, minBoxSize, spatialScale,
-					DimsHW(poolingH, poolingW), 
-					Weights{ nvinfer1::DataType::kFLOAT, anchorsRatios, anchorsRatioCount },
-					Weights{ nvinfer1::DataType::kFLOAT, anchorsScales, anchorsScaleCount }), nvPluginDeleter);
+				(createFasterRCNNPlugin(in.featureStride, in.preNmsTop, in.nmsMaxOut, in.iouThreshold, in.minBoxSize,in.spatialScale,
+					DimsHW(in.poolingH, in.poolingW), 
+					Weights{ nvinfer1::DataType::kHALF, in.anchorsRatios, in.anchorsRatioCount },
+					Weights{ nvinfer1::DataType::kHALF, in.anchorsScales, in.anchorsScaleCount }), nvPluginDeleter);
 			return mPluginRPROI.get();
 		}
 		else
@@ -100,7 +132,7 @@ public:
 		}
 		else if(!strcmp(layerName, "RPROIFused"))
 		{
-			assert(mPluginRPROI =nullptr);
+			assert(mPluginRPROI == nullptr);
 			printf("%sInstanzione l'unique ptr per l'oggetto resiale RPROIFused\n", LOG_ADD);
 			mPluginRPROI = std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)>
 				(createFasterRCNNPlugin(serialData, serialLength), nvPluginDeleter);
@@ -136,6 +168,7 @@ public:
 	std::unique_ptr<Reshape<18>> mPluginRshp18{ nullptr };
 	void(*nvPluginDeleter)(INvPlugin*){[](INvPlugin* ptr){ptr->destroy();}};
 	std::unique_ptr<INvPlugin, decltype(nvPluginDeleter)> mPluginRPROI{nullptr, nvPluginDeleter};
+    info in;
 };
 
 #endif
