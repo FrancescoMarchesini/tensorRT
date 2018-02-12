@@ -16,7 +16,7 @@ class Logger : public ILogger
 
 InferenceEngine::InferenceEngine(){
     
-	std::cout<<LOG_GIE<<"Dai Dai Dai..."<<std::endl;
+	std::cout<<LOG_GIE<<"Dai Dai Dai...\n"<<std::endl;
 }
 
 InferenceEngine::InferenceEngine(const std::string& model_file,
@@ -24,6 +24,28 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 			    const std::vector<std::string>& output,
 				unsigned int bathSize)
 
+{
+    _deploy = model_file.c_str();
+    _model = trained_file.c_str();
+    _output = output;
+    _batchSize = bathSize;
+    engine_ = NULL;
+
+    printf("%sParametri del network\n", LOG_GIE);
+    printf("%smodel_file: %s\n", LOG_GIE, _deploy);
+    printf("%strained_file: %s\n", LOG_GIE, _model);
+    for(int i=0; i<_output.size(); i++)
+        printf("%soutput[%d]: %s\n",LOG_GIE, i, _output[i].c_str());
+    printf("%sbatchSize: %d\n",LOG_GIE, _batchSize);
+
+}
+
+InferenceEngine::~InferenceEngine()
+{
+    engine_->destroy();
+}
+
+bool InferenceEngine::loadFastRCNN()
 {
 	std::cout<<LOG_GIE<<"creo il builder"<<std::endl;
 	IBuilder* builder = createInferBuilder(gLogger);
@@ -37,23 +59,21 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 	std::cout<<LOG_GIE<<"creo il plugin"<<std::endl;
 	parser->setPluginFactory(&pluginFactory);
 
-    printf("%sDetrmino se ce la fp16", LOG_GIE);
+    printf("%sDetrmino se ce la fp16\n", LOG_GIE);
    bool fp16 = builder->platformHasFastFp16();
     if(fp16) printf("%sYes Baby", LOG_GIE);
     DataType modelDataType = fp16 ? DataType::kHALF : DataType::kFLOAT;
 
 	std::cout<<LOG_GIE<<"Parsing del modello"<<std::endl;
-    auto blob_name_to_tensor = parser->parse(model_file.c_str(),
-                                            trained_file.c_str(),
-                                            *network,
-                                            modelDataType);
+    auto blob_name_to_tensor = parser->parse(_deploy, _model, *network, modelDataType);
     
     printf("%sHo finito di parsare il modello\n", LOG_GIE);
     
-    for(auto&s : output){
+    for(auto&s : _output){
 		printf("%stensore di output: %s\n", LOG_GIE, s.c_str());
 		network->markOutput(*blob_name_to_tensor->find(s.c_str()));
-	}
+    }	
+
     // Build the engine
     builder->setMaxBatchSize(1);
     builder->setMaxWorkspaceSize(1 << 30);
@@ -69,14 +89,10 @@ InferenceEngine::InferenceEngine(const std::string& model_file,
 	if(modelToPlane("tensorPlan"))
 		printf("%sYEs baby\n", LOG_GIE);
   
-    
     builder->destroy();
     pluginFactory.destroyPlugin();
-}
 
-InferenceEngine::~InferenceEngine()
-{
-    engine_->destroy();
+    return true;
 }
 
 bool InferenceEngine::doInference(const std::string& plan_file)
@@ -88,12 +104,20 @@ bool InferenceEngine::doInference(const std::string& plan_file)
 	char cache_path[512];
 	//sprintf(cache_path, "%s.tensorcache", "plane");
 	sprintf(cache_path, plan_file.c_str());
-	std::cout<<LOG_GIE<<"apro il file "<<cache_path<<std::endl;
+	std::cout<<LOG_GIE<<"il file cache esiste?"<<cache_path<<std::endl;
 	
     std::ifstream cache(cache_path);
 
-    if( cache)
-	{
+    if( !cache)
+    {
+            printf("%sNo non esite quindi parsing del modello e creazione\n", LOG_GIE);
+            if(!loadFastRCNN()){
+                printf("%no Bueno\n", LOG_GIE);
+                return 0;
+            }
+    }
+    else
+    {
 		std::cout<<LOG_GIE<<"file plane trovato carico modello.."<<std::endl;
 		gieModelStream << cache.rdbuf();
 		cache.close();

@@ -161,8 +161,8 @@ public:
 			|| !strcmp(name, "ReshapeCTo18")
 			|| !strcmp(name, "RPROIFused");
 	}
-
-			//Creo l'oggeto Reshape come puntatore unico, il puntatore unico e derivato dagli Smart Pointer
+    
+	//Creo l'oggeto Reshape come puntatore unico, il puntatore unico e derivato dagli Smart Pointer
 	//un oggetto per un e unica allocazione di risorse.
 	std::unique_ptr<Reshape<2>> mPluginRshp2{ nullptr };
 	std::unique_ptr<Reshape<18>> mPluginRshp18{ nullptr };

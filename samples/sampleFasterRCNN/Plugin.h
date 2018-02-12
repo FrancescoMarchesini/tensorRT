@@ -50,7 +50,7 @@ public:
 		printf("%sNumero Canali = %d\n",LOG_PLUG,(int)OutC);
 		printf("%sHeight del tensore = %d\n", LOG_PLUG, inputs[0].d[0] * inputs[0].d[1] / OutC );
 		printf("%swidht del tensore = %d\n", LOG_PLUG, inputs[0].d[2]);
-	return(DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]));
+	    return(DimsCHW(OutC, inputs[0].d[0] * inputs[0].d[1] /OutC, inputs[0].d[2]));
 	}
 
 	void configure(const Dims* inputs, int nbInputs, const Dims* outputDims, int nbOutputs, int maxBatchSize) override

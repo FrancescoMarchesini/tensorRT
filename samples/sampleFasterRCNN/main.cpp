@@ -23,7 +23,7 @@ struct parametri{
 	
 }rete;
 
-using namespace::nvinfer1;
+using namespace::nvinfert1
 using namespace::nvcaffeparser1;
 
 
@@ -32,16 +32,15 @@ int main(int argc, char** argv){
 	printf("%sCreo un GIE \n",LOG_MAIN);
 
 	unsigned int N = 2;
-	printf("%sBatchSize= %d\n",LOG_MAIN, N);
 	
 	std::string proto_path = "../../data/faster-rcnn/faster_rcnn_test_iplugin.prototxt" ; 
 	std::string model_path = "../../data/faster-rcnn/VGG16_faster_rcnn_final.caffemodel";  
     std::vector<std::string> outputs{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3};
 
 	printf("%sInstanzione l'infere engine\n",LOG_MAIN);
-	//InferenceEngine gie(proto_path, model_path, outputs, N);
-	InferenceEngine gie;
-
+	InferenceEngine gie(proto_path, model_path, outputs, N);
+	//InferenceEngine gie();
+    //gie.loadFastRCNN();
     gie.doInference("tensorPlan");
 	return 0;
 };

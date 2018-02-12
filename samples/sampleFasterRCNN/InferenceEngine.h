@@ -11,8 +11,10 @@
 class InferenceEngine
 {
 public:
-	InferenceEngine();
+    ~InferenceEngine();
 
+    InferenceEngine();
+  
 	/**
 	 *	model_file : file.prototext
 	 *	trained_file: file.caffemodel
@@ -25,13 +27,11 @@ public:
                     const std::string& trained_file,
 					const std::vector<std::string>& output,
 					unsigned int bathSize);
-
-    ~InferenceEngine();
-
-   
+    
+    bool loadFastRCNN();
     bool doInference(const std::string& plan_file);
     bool modelToPlane(const std::string& plan_file);
-
+    
     nvinfer1::ICudaEngine* Get() const
     {
         return engine_;
@@ -45,6 +45,12 @@ private:
     
     //oggetto per Serializzare il modello sulla memoria dell'host
     nvinfer1::IHostMemory* serMem{nullptr};
+    
+    const char* _deploy;
+    const char* _model;
+    std::vector<std::string> _output;
+    unsigned int _batchSize;
+    
 };
 
 #endif
