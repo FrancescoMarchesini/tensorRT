@@ -23,7 +23,7 @@ struct parametri{
 	
 }rete;
 
-using namespace::nvinfert1
+using namespace::nvinfer1;
 using namespace::nvcaffeparser1;
 
 
@@ -40,7 +40,18 @@ int main(int argc, char** argv){
 	printf("%sInstanzione l'infere engine\n",LOG_MAIN);
 	InferenceEngine gie(proto_path, model_path, outputs, N);
 	//InferenceEngine gie();
-    //gie.loadFastRCNN();
-    gie.doInference("tensorPlan");
-	return 0;
+    std::ifstream cache("tensorPlan");
+    if(!cache)
+    {
+        gie.loadFastRCNN();
+        gie.loadPlane("tensorPlan");
+    }
+    else
+    {
+        gie.loadPlane("tensorPlan");
+	}
+
+    gie.doInference();
+    
+    return 0;
 };

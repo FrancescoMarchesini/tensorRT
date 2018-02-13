@@ -86,7 +86,7 @@ bool InferenceEngine::loadFastRCNN()
 	network->destroy();
     parser->destroy();
 
-	if(modelToPlane("tensorPlan"))
+	if(saveModelToPlane("tensorPlan"))
 		printf("%sYEs baby\n", LOG_GIE);
   
     builder->destroy();
@@ -95,7 +95,7 @@ bool InferenceEngine::loadFastRCNN()
     return true;
 }
 
-bool InferenceEngine::doInference(const std::string& plan_file)
+bool InferenceEngine::loadPlane(const std::string& plan_file)
 {
 	std::stringstream gieModelStream;
 	gieModelStream.seekg(0, gieModelStream.beg);
@@ -108,30 +108,19 @@ bool InferenceEngine::doInference(const std::string& plan_file)
 	
     std::ifstream cache(cache_path);
 
-    if( !cache)
-    {
-            printf("%sNo non esite quindi parsing del modello e creazione\n", LOG_GIE);
-            if(!loadFastRCNN()){
-                printf("%no Bueno\n", LOG_GIE);
-                return 0;
-            }
-    }
-    else
-    {
-		std::cout<<LOG_GIE<<"file plane trovato carico modello.."<<std::endl;
-		gieModelStream << cache.rdbuf();
-		cache.close();
+	std::cout<<LOG_GIE<<"file plane trovato carico modello.."<<std::endl;
+	gieModelStream << cache.rdbuf();
+	cache.close();
 
-		std::cout<<LOG_GIE<<"costruisco l'engine a partire dal plane"<<std::endl;
+	std::cout<<LOG_GIE<<"costruisco l'engine a partire dal plane"<<std::endl;
 		
-		std::cout<<LOG_GIE<<"Creo il Builder"<<std::endl;
-		nvinfer1::IBuilder* builder = nvinfer1::createInferBuilder(gLogger);
-		if(builder != NULL){
-			bool fp16 = builder->platformHasFastFp16();
-			if(fp16) std::cout<<LOG_GIE<<"bella storia c'è il suporto per fp16 ovvero dataType KHALF"<<std::endl;
+	std::cout<<LOG_GIE<<"Creo il Builder"<<std::endl;
+	nvinfer1::IBuilder* builder = nvinfer1::createInferBuilder(gLogger);
+	if(builder != NULL){
+		bool fp16 = builder->platformHasFastFp16();
+		if(fp16) std::cout<<LOG_GIE<<"bella storia c'è il suporto per fp16 ovvero dataType KHALF"<<std::endl;
 			builder->destroy();
 			std::cout<<LOG_GIE<<"distruggo il builder"<<std::endl;
-		}
 	}
 	
 	std::cout<<LOG_GIE<<"creo il contesto per l'esecuzione run time"<<std::endl;
@@ -170,11 +159,23 @@ bool InferenceEngine::doInference(const std::string& plan_file)
 	return true;
 }
 
-bool InferenceEngine::modelToPlane(const std::string& plan_file)  
+bool InferenceEngine::saveModelToPlane(const std::string& plan_file)  
 {
 	std::cout<<LOG_GIE<<"serializzo il modello su inella moria dell'host"<<std::endl;
 	std::ofstream gieModelStream(plan_file.c_str(), std::ofstream::binary); 	
 	serMem = engine_->serialize();
 	gieModelStream.write((const char*)serMem->data(), serMem->size());
 	return(true);
+}
+
+bool InferenceEngine::doInference()
+{
+    printf("%sadesso icominciomao a divertirci", LOG_GIE);
+    for(int i=0; i<engine_->getNbBindings(); i++)
+    {
+        printf("%s%s = %d\n", LOG_GIE, engine_->getBindingName(i),  engine_->getBindingDimensions(i));        
+    }
+
+    return true;
+    
 }

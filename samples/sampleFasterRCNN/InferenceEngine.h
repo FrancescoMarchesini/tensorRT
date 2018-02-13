@@ -29,8 +29,10 @@ public:
 					unsigned int bathSize);
     
     bool loadFastRCNN();
-    bool doInference(const std::string& plan_file);
-    bool modelToPlane(const std::string& plan_file);
+    bool loadPlane(const std::string& plan_file);
+    bool saveModelToPlane(const std::string& plan_file);
+   
+    bool doInference();
     
     nvinfer1::ICudaEngine* Get() const
     {
