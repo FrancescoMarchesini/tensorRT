@@ -30,27 +30,32 @@ using namespace::nvcaffeparser1;
 int main(int argc, char** argv){
 		
 	printf("%sCreo un GIE \n",LOG_MAIN);
-
+	printf("%sParametri del GIE\n",LOG_MAIN);
 	unsigned int N = 2;
-	
 	std::string proto_path = "../../data/faster-rcnn/faster_rcnn_test_iplugin.prototxt" ; 
 	std::string model_path = "../../data/faster-rcnn/VGG16_faster_rcnn_final.caffemodel";  
     std::vector<std::string> outputs{rete.output_blob_name0,rete.output_blob_name1,rete.output_blob_name2,rete.output_blob_name3};
 
-	printf("%sInstanzione l'infere engine\n",LOG_MAIN);
+	printf("%sistanzio l'inference engine\n",LOG_MAIN);
 	InferenceEngine gie(proto_path, model_path, outputs, N);
-	//InferenceEngine gie();
+    
+    //il file GIE
     std::ifstream cache("tensorPlan");
+    //se il file non è presente
     if(!cache)
     {
-        gie.loadFastRCNN();
-        gie.loadPlane("tensorPlan");
+        //creo il GpuInfereceEngine, ovvero un tensor per layer, dal file caffe
+        gie.loadFastRCNNFromModel();
+        //salvo su file l'intero GIE per le inferenze e per futuro utilizzo
+        gie.loadFastRCNNFromPlane("tensorPlan");
     }
     else
     {
-        gie.loadPlane("tensorPlan");
+        //il file è presente quindi lo deserializzo per creare il GIE
+        gie.loadFastRCNNFromPlane("tensorPlan");
 	}
 
+    //adesso posso usare il cuda engine per fare inferenze
     gie.doInference();
     
     return 0;

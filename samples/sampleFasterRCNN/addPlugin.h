@@ -20,20 +20,6 @@ using namespace nvcaffeparser1;
 using namespace nvinfer1;
 using namespace plugin;
 
-/*
-int poolingH =  7
-int poolingW = 7;
-int featureStride = 16;
-int preNmsTop = 6000;
-int nmsMaxOut = 300;
-int anchorsRatioCount = 3;
-int anchorsScaleCount = 3;
-float iouThreshold = 0.7f;
-float minBoxSize = 16;
-float spatialScale = 0.0625f;
-float anchorsRatios[3] = { 0.5f, 1.0f, 2.0f };
-float anchorsScales[3] = { 8.0f, 16.0f, 32.0f };
-*/
 class info
 {
     public:

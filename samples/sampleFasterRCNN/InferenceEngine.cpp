@@ -14,8 +14,8 @@ class Logger : public ILogger
     };
 }gLogger;
 
-InferenceEngine::InferenceEngine(){
-    
+InferenceEngine::InferenceEngine()
+{
 	std::cout<<LOG_GIE<<"Dai Dai Dai...\n"<<std::endl;
 }
 
@@ -45,7 +45,7 @@ InferenceEngine::~InferenceEngine()
     engine_->destroy();
 }
 
-bool InferenceEngine::loadFastRCNN()
+bool InferenceEngine::loadFastRCNNFromModel()
 {
 	std::cout<<LOG_GIE<<"creo il builder"<<std::endl;
 	IBuilder* builder = createInferBuilder(gLogger);
@@ -59,18 +59,18 @@ bool InferenceEngine::loadFastRCNN()
 	std::cout<<LOG_GIE<<"creo il plugin"<<std::endl;
 	parser->setPluginFactory(&pluginFactory);
 
-    printf("%sDetrmino se ce la fp16\n", LOG_GIE);
-   bool fp16 = builder->platformHasFastFp16();
-    if(fp16) printf("%sYes Baby", LOG_GIE);
+    printf("%sDetermino se c'è il support per fp16\n", LOG_GIE);
+    bool fp16 = builder->platformHasFastFp16();
+    if(fp16) printf("%sYes baby\n", LOG_GIE);
     DataType modelDataType = fp16 ? DataType::kHALF : DataType::kFLOAT;
 
 	std::cout<<LOG_GIE<<"Parsing del modello"<<std::endl;
     auto blob_name_to_tensor = parser->parse(_deploy, _model, *network, modelDataType);
     
     printf("%sHo finito di parsare il modello\n", LOG_GIE);
-    
+    printf("%sMappo tensori con gli output\n", LOG_GIE);
     for(auto&s : _output){
-		printf("%stensore di output: %s\n", LOG_GIE, s.c_str());
+		printf("%soutput: %s\n", LOG_GIE, s.c_str());
 		network->markOutput(*blob_name_to_tensor->find(s.c_str()));
     }	
 
@@ -87,7 +87,7 @@ bool InferenceEngine::loadFastRCNN()
     parser->destroy();
 
 	if(saveModelToPlane("tensorPlan"))
-		printf("%sYEs baby\n", LOG_GIE);
+		printf("%syes baby\n", LOG_GIE);
   
     builder->destroy();
     pluginFactory.destroyPlugin();
@@ -95,7 +95,7 @@ bool InferenceEngine::loadFastRCNN()
     return true;
 }
 
-bool InferenceEngine::loadPlane(const std::string& plan_file)
+bool InferenceEngine::loadFastRCNNFromPlane(const std::string& plan_file)
 {
 	std::stringstream gieModelStream;
 	gieModelStream.seekg(0, gieModelStream.beg);
@@ -161,21 +161,19 @@ bool InferenceEngine::loadPlane(const std::string& plan_file)
 
 bool InferenceEngine::saveModelToPlane(const std::string& plan_file)  
 {
-	std::cout<<LOG_GIE<<"serializzo il modello su inella moria dell'host"<<std::endl;
+	std::cout<<LOG_GIE<<"serializzo il modello su nella moria dell'host"<<std::endl;
 	std::ofstream gieModelStream(plan_file.c_str(), std::ofstream::binary); 	
 	serMem = engine_->serialize();
 	gieModelStream.write((const char*)serMem->data(), serMem->size());
-	return(true);
+	return true;
 }
 
 bool InferenceEngine::doInference()
 {
-    printf("%sadesso icominciomao a divertirci", LOG_GIE);
+    printf("%sadesso incominciamo a divertirci\n", LOG_GIE);
     for(int i=0; i<engine_->getNbBindings(); i++)
     {
         printf("%s%s = %d\n", LOG_GIE, engine_->getBindingName(i),  engine_->getBindingDimensions(i));        
     }
-
     return true;
-    
 }
